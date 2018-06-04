@@ -1,21 +1,30 @@
 #!/usr/bin/env python3
 # to install: `pip install -e .`
 # to upgrade: `pip3 install --upgrade --upgrade-strategy eager --no-cache-dir kpa`
-# to publish: `python3 setup.py publish`
-# to test: `python3 setup.py test`
-
+# to publish: `./setup.py publish`
+# to test: `./setup.py test`
 
 from setuptools import setup
 import imp
 import sys
+from pathlib import Path
+from urllib.request import urlopen
+import subprocess
+import json
 
 version = imp.load_source('kpa.version', 'kpa/version.py').version
 
 if sys.argv[-1] == 'publish':
-    from pathlib import Path
-    import subprocess, urllib.request, json
-    resp = urllib.request.urlopen('https://pypi.python.org/pypi/kpa/json')
-    latest_version = json.loads(resp.read())['info']['version']
+
+    git_workdir_returncode = subprocess.run('git diff-files --quiet'.split()).returncode
+    assert git_workdir_returncode in [0,1]
+    if git_workdir_returncode == 1:
+        print('git workdir has changes')
+        print('please either revert or stage them')
+        sys.exit(1)
+
+    pypi_url = 'https://pypi.python.org/pypi/kpa/json'
+    latest_version = json.loads(urlopen(pypi_url).read())['info']['version']
     # Note: it takes pypi a minute to update the API, so this can be wrong.
     if latest_version == version:
         new_version_parts = version.split('.')
@@ -23,8 +32,18 @@ if sys.argv[-1] == 'publish':
         new_version = '.'.join(new_version_parts)
         print(f'autoincrementing version {version} -> {new_version}')
         Path('kpa/version.py').write_text(f"version = '{new_version}'\n")
+        version = new_version
+        subprocess.run(['git','stage','kpa/version.py'])
+
+    git_index_returncode = subprocess.run('git diff-index --quiet --cached HEAD'.split()).returncode
+    assert git_index_returncode in [0,1]
+    if git_index_returncode == 1:
+        print('git index has changes')
+        subprocess.run(['git','commit','-m',version])
+
     if not Path('~/.pypirc').expanduser().exists():
         print('warning: you need ~/.pypirc')
+
     if Path('dist').exists() and list(Path('dist').iterdir()):
         setuppy = Path('dist').absolute().parent / 'setup.py'
         assert setuppy.is_file() and 'kpa' in setuppy.read_text()
@@ -32,9 +51,11 @@ if sys.argv[-1] == 'publish':
             assert child.name.startswith('kpa-')
             print('unlinking', child)
             child.unlink()
-    subprocess.check_output('python3 setup.py sdist bdist_wheel'.split())
-    subprocess.check_output('twine upload dist/*'.split())
+
+    subprocess.run('python3 setup.py sdist bdist_wheel'.split(), check=True)
+    subprocess.run('twine upload dist/*'.split(), check=True)
     sys.exit(0)
+
 
 setup(
     name='Kpa',

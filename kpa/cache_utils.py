@@ -20,7 +20,7 @@ class lru_cache_set:
             item = item[self.NEWER]
         return repr(keys)
 
-    def contains(self, key):
+    def __contains__(self, key):
         # checks whether we contain a key and also makes it the newest
         item = self._cache.get(key, None)
         if item is None:
@@ -76,7 +76,7 @@ class _lru_cache_set_slow:
         self._keys.append(key)
         if len(self._keys) > self.maxsize:
             self._keys.pop(0)
-    def contains(self, key):
+    def __contains__(self, key):
         if key not in self._keys:
             return False
         self._keys.remove(key)
@@ -96,8 +96,8 @@ if __name__ == '__main__':
         assert repr(c1) == repr(c2)
 
     for key in 'abcdefg':
-        has1 = c1.contains(key)
-        has2 = c2.contains(key)
+        has1 = key in c1
+        has2 = key in c2
         assert has1 == has2, (key, has1, has2, c1, c2)
         assert repr(c1) == repr(c2)
         print('{}{}{}'.format('-+'[int(has1)], key, c1))
