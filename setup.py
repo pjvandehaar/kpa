@@ -26,7 +26,6 @@ if sys.argv[-1] == 'publish':
     if not Path('~/.pypirc').expanduser().exists():
         print('warning: you need ~/.pypirc')
     if Path('dist').exists() and list(Path('dist').iterdir()):
-        print('warning: cleaning out dist/*')
         setuppy = Path('dist').absolute().parent / 'setup.py'
         assert setuppy.is_file() and 'kpa' in setuppy.read_text()
         for child in Path('dist').absolute().iterdir():
@@ -38,7 +37,7 @@ if sys.argv[-1] == 'publish':
     sys.exit(0)
 
 setup(
-    name='kpa',
+    name='Kpa',
     version=version,
     description="<forthcoming>",
     author="Peter VandeHaar",
