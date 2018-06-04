@@ -48,7 +48,7 @@ if sys.argv[-1] == 'publish':
         setuppy = Path('dist').absolute().parent / 'setup.py'
         assert setuppy.is_file() and 'kpa' in setuppy.read_text()
         for child in Path('dist').absolute().iterdir():
-            assert child.name.startswith('kpa-')
+            assert child.name.startswith('kpa-'), child
             print('unlinking', child)
             child.unlink()
 
