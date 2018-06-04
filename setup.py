@@ -9,16 +9,33 @@ from setuptools import setup
 import imp
 import sys
 
+version = imp.load_source('kpa.version', 'kpa/version.py').version
+
 if sys.argv[-1] == 'publish':
-    import pathlib, subprocess
-    # TODO: auto-increment version
-    if not pathlib.Path('~/.pypirc').expanduser().exists(): print('warning: you need ~/.pypirc')
-    if pathlib.Path('dist').exists() and list(pathlib.Path('dist').iterdir()): print('warning: dist/* may cause problems')
+    from pathlib import Path
+    import subprocess, urllib.request, json
+    resp = urllib.request.urlopen('https://pypi.python.org/pypi/kpa/json')
+    latest_version = json.loads(resp.read())['info']['version']
+    # Note: it takes pypi a minute to update the API, so this can be wrong.
+    if latest_version == version:
+        new_version_parts = version.split('.')
+        new_version_parts[2] = str(1+int(new_version_parts[2]))
+        new_version = '.'.join(new_version_parts)
+        print(f'autoincrementing version {version} -> {new_version}')
+        Path('kpa/version.py').write_text(f"version = '{new_version}'\n")
+    if not Path('~/.pypirc').expanduser().exists():
+        print('warning: you need ~/.pypirc')
+    if Path('dist').exists() and list(Path('dist').iterdir()):
+        print('warning: cleaning out dist/*')
+        setuppy = Path('dist').absolute().parent / 'setup.py'
+        assert setuppy.is_file() and 'kpa' in setuppy.read_text()
+        for child in Path('dist').absolute().iterdir():
+            assert child.name.startswith('kpa-')
+            print('unlinking', child)
+            child.unlink()
     subprocess.check_output('python3 setup.py sdist bdist_wheel'.split())
     subprocess.check_output('twine upload dist/*'.split())
     sys.exit(0)
-
-version = imp.load_source('kpa.version', 'kpa/version.py').version
 
 setup(
     name='kpa',
