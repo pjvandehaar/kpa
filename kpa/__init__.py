@@ -1,11 +1,12 @@
 
-import sys
-import math
+def _f():
+    import sys
+    if sys.version_info < (3, 4):
+        print("Requires Python 3.4+")
+        sys.exit(1)
 
-if sys.version_info < (3, 4):
-    print("Requires Python 3.4+")
-    sys.exit(1)
-
-
-try: math.inf
-except AttributeError: math.inf = float('inf')
+    import math
+    try: math.inf
+    except AttributeError: math.inf = float('inf')
+_f()
+del _f

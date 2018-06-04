@@ -13,10 +13,10 @@ if sys.argv[-1] == 'publish':
     import pathlib, subprocess
     # TODO: auto-increment version
     if not pathlib.Path('~/.pypirc').expanduser().exists(): print('warning: you need ~/.pypirc')
-    if list(pathlib.Path('dist').iterdir()): print('warning: dist/* may cause problems')
+    if pathlib.Path('dist').exists() and list(pathlib.Path('dist').iterdir()): print('warning: dist/* may cause problems')
     subprocess.check_output('python3 setup.py sdist bdist_wheel'.split())
     subprocess.check_output('twine upload dist/*'.split())
-
+    sys.exit(0)
 
 version = imp.load_source('kpa.version', 'kpa/version.py').version
 
@@ -24,8 +24,8 @@ setup(
     name='kpa',
     version=version,
     description="<forthcoming>",
-#    author="Peter VandeHaar",
-#    author_email="pjvandehaar@gmail.com",
+    author="Peter VandeHaar",
+    author_email="pjvandehaar@gmail.com",
     url="https://github.com/pjvandehaar/kpa",
     classifiers=[
         'Programming Language :: Python :: 3 :: Only',
