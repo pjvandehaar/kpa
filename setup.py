@@ -14,7 +14,8 @@ import json
 
 version = imp.load_source('kpa.version', 'kpa/version.py').version
 
-if sys.argv[-1] == 'publish':
+
+if sys.argv[-1] in ['publish', 'pub']:
 
     git_workdir_returncode = subprocess.run('git diff-files --quiet'.split()).returncode
     assert git_workdir_returncode in [0,1]
@@ -42,7 +43,7 @@ if sys.argv[-1] == 'publish':
         subprocess.run(['git','commit','-m',version])
 
     if not Path('~/.pypirc').expanduser().exists():
-        print('warning: you need ~/.pypirc')
+        print('warning: you need a ~/.pypirc')
 
     if Path('dist').exists() and list(Path('dist').iterdir()):
         setuppy = Path('dist').absolute().parent / 'setup.py'
