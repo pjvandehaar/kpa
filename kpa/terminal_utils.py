@@ -1,6 +1,8 @@
 
 def use_ipdb():
-    # TODO: make `from kpa import use_ipdb` set `sys.excepthook` without `use_ipdb()`?
+    # TODO: make `import kpa.terminal_utils.use_ipdb` set `sys.excepthook` without `use_ipdb()`?
+    #       - then would all of kpa.terminal_utils.* need to be modules, rather than functions?
+    # TODO: figure out how to use `python3 -m ipdb run.py` or `ipdb3 run.py`. Are they broken on py3?
     import sys
     def excepthook(*args, **kwargs):
         from IPython.core import ultratb
