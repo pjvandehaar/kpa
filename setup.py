@@ -56,6 +56,9 @@ if sys.argv[-1] in ['publish', 'pub']:
 
     subprocess.run('python3 setup.py sdist bdist_wheel'.split(), check=True)
     subprocess.run('twine upload dist/*'.split(), check=True)
+
+    if git_index_returncode == 1:
+        print('Now do `git push`.')
     sys.exit(0)
 
 
