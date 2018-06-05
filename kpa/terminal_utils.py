@@ -12,6 +12,7 @@ def use_ipdb():
 
 
 def termcolor(text, fg=None, bg=None):
+    # TODO: look at <https://github.com/kennethreitz/crayons/blob/master/crayons.py>
     from subprocess import check_output
     def get_code(args):
         if not hasattr(termcolor,'_cache'): termcolor._cache = {}

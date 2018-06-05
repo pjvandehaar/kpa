@@ -16,6 +16,7 @@ version = imp.load_source('kpa.version', 'kpa/version.py').version
 
 
 if sys.argv[-1] in ['publish', 'pub']:
+    # TODO: use `class UploadCommand(setuptools.Command)` from <https://github.com/kennethreitz/setup.py/blob/master/setup.py#L49>
 
     git_workdir_returncode = subprocess.run('git diff-files --quiet'.split()).returncode
     assert git_workdir_returncode in [0,1]
