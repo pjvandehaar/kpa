@@ -11,6 +11,11 @@ def use_ipdb():
     sys.excepthook = excepthook
 
 
+def ignore_sigpipe():
+    import signal
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+
 def termcolor(text, fg=None, bg=None):
     # TODO: look at <https://github.com/kennethreitz/crayons/blob/master/crayons.py>
     from subprocess import check_output
