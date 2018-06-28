@@ -1,7 +1,17 @@
 
 
 def status_code_app(environ, start_response):
-    # TODO: use werkzeug
+    # TODO: use werkzeug?
+    # TODO: query all status codes using [urllib.request.urlopen, requests.get, requests.get.raise_for_status] to compare error-handling
+    #  - results should be: (urlopen / requests.get*)
+    #    - can't connect => URLError / requests.exceptions.ConnectionError
+    #    - 000-100 => BadStatusLine / requests.exceptions.ConnectionError
+    #    - 101-199 => HTTPError / ok
+    #    - 200-299 => ok
+    #    - 301-303,307 with valid "Location:" header => respond for new location
+    #    - 300-399 otherwise => HTTPError / ok
+    #    - 400-599 => HTTPError / ok (but raise_for_status raises requests.exceptions.HTTPError)
+    #    - 600-999 => HTTPError / ok
     import re
     headers = [('Content-type', 'text/plain')]
     path = environ.get('PATH_INFO','')
@@ -22,9 +32,9 @@ def status_code_app(environ, start_response):
     raise Exception(f'bad url: {path}')
 
 
-def serve():
+def serve(app):
     from .http_utils import run_gunicorn
     try:
-        run_gunicorn(status_code_app)
+        run_gunicorn(app)
     except KeyboardInterrupt:
         pass
