@@ -4,8 +4,8 @@ def main():
     import sys
 
     if sys.argv[1:] == ['status-code-server']:
-        from .http_server import serve, status_code_app
-        serve(status_code_app)
+        from .http_server import serve, status_code_server
+        serve(status_code_server)
 
     elif sys.argv[1:] == ['termcolor']:
         from .terminal_utils import termcolor

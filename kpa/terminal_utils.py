@@ -24,7 +24,13 @@ def termcolor(text, fg=None, bg=None):
         if termcolor._cache.get(args, None) is None: termcolor._cache[args] = check_output(f'tput {args}'.split()).decode()
         return termcolor._cache[args]
     return (get_code(f'setaf {fg}') if fg else '') + (get_code(f'setab {bg}') if bg else '') + text + get_code('sgr0')
-
+termcolor.BG_RED = 1
+termcolor.BG_GREEN = 2
+termcolor.BG_YELLOW = 3
+termcolor.BG_BLUE = 4
+termcolor.BG_PINK = 5
+termcolor.BG_GRAY = 6
+termcolor.BG_WHITE = 14
 
 class TerminalLineWrapper:
     # TODO: make these classmethods

@@ -1,7 +1,6 @@
 
 
-def status_code_app(environ, start_response):
-    # TODO: use werkzeug?
+def status_code_server(environ, start_response):
     # TODO: query all status codes using [urllib.request.urlopen, requests.get, requests.get.raise_for_status] to compare error-handling
     #  - results should be: (urlopen / requests.get*)
     #    - can't connect => URLError / requests.exceptions.ConnectionError
