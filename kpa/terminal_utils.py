@@ -16,14 +16,17 @@ def ignore_sigpipe():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
-def termcolor(text, fg=None, bg=None):
+def termcolor(text, fg=None, bg=None, under=False):
     # TODO: look at <https://github.com/kennethreitz/crayons/blob/master/crayons.py>
     from subprocess import check_output
     def get_code(args):
         if not hasattr(termcolor,'_cache'): termcolor._cache = {}
         if termcolor._cache.get(args, None) is None: termcolor._cache[args] = check_output(f'tput {args}'.split()).decode()
         return termcolor._cache[args]
-    return (get_code(f'setaf {fg}') if fg else '') + (get_code(f'setab {bg}') if bg else '') + text + get_code('sgr0')
+    return ((get_code(f'setaf {fg}') if fg else '') +
+            (get_code(f'setab {bg}') if bg else '') +
+            (get_code('smul') if under else '') +
+            text + get_code('sgr0'))
 termcolor.BG_RED = 1
 termcolor.BG_GREEN = 2
 termcolor.BG_YELLOW = 3

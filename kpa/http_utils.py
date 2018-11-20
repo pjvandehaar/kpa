@@ -65,3 +65,15 @@ def run_gunicorn(app, host='localhost', port=5000, use_reloader=True, num_worker
     #         print(f'             short: {sval.short}')
     #         print(f'             desc: <<\n{sval.desc}\n>>')
     sga.run()
+
+
+from .func_cache_utils import shelve_cache
+@shelve_cache
+def cached_get(url):
+    import requests
+    # Do we need to encode this response somehow?
+    # Maybe as `(resp.status, resp.text)`?
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:62.0) Gecko/20100101 Firefox/62.0',
+               'Accept-Language':'en-US,en;q=0.5',
+    }
+    return requests.get(url)
