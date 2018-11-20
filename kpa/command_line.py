@@ -7,6 +7,10 @@ def main():
         from .http_server import serve, status_code_server
         serve(status_code_server)
 
+    elif sys.argv[1:] == ['dir-server']:
+        from .http_server import serve, magic_dir_server
+        serve(magic_dir_server)
+
     elif sys.argv[1:] == ['termcolor']:
         from .terminal_utils import termcolor
         def r(num): return '#' if num is None else str(num%10)

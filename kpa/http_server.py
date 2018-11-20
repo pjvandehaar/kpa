@@ -31,6 +31,90 @@ def status_code_server(environ, start_response):
     raise Exception(f'bad url: {path}')
 
 
+def magic_directory_server(environ, start_response):
+    # This is like `python3 -m http.server` (http.server.SimpleHTTPRequestHandler).
+    # `SimpleHTTPRequestHandler` chooses mimetype using file extension (mimetypes.types_map)
+    # This server instead uses mime-guessing
+    # I have a solid implementation in `MimeSniffingHTTPRequestHandler` but I'm not sure how to convert it to WSGI/gunicorn
+    #    It extends `http.server.SimpleHTTPRequestHandler`
+    #       which extends `http.server.BaseHTTPRequestHandler`
+    #           which extends `socketserver.StreamRequestHandler`.
+    #    It's run using `http.server.test(HandlerClass=MimeSniffingHTTPRequestHandler, ServerClass=http.server.HTTPServer)`
+    #       which uses `http.server.HTTPServer(('localhost', 8001), MimeSniffingHTTPRequestHandler).serve_forever()`
+    #          which extends `socketserver.TCPServer`
+    import os
+    def normalize_path(path):
+        # This code is taken from http.server.SimpleHTTPRequestHandler.translate_path()
+        import urllib.parse, posixpath
+        path = path.split('?', 1)[0]
+        path = path.split('#', 1)[0]
+        has_trailing_slash = path.rstrip().endswith('/')
+        path = urllib.parse.unquote(path)
+        path = posixpath.normpath(path)
+        words = [word for word in path.split('/') if word]
+        path = os.getcwd()
+        for word in words:
+            if os.path.dirname(word) or word in (os.curdir, os.pardir):
+                # ignore components like `.`, `..`, (and also somehow directories?)
+                continue
+            path = os.path.join(path, word)
+        if has_trailing_slash:
+            path += '/'
+        return path
+    def generate_directory_listing(path):
+        enc = sys.getfilesystemencoding()
+        try:
+            lst = os.listdir(path)
+        except OSError:
+            return 'Failed to list directory'.encode(enc), enc
+        lst.sort(key=lambda a: a.lower())
+        r = []
+        displaypath = html.escape(urllib.parse.unquote(path), quote=False)
+        title = 'Directory listing for %s' % displaypath
+        r.append('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" '
+                 '"http://www.w3.org/TR/html4/strict.dtd">')
+        r.append('<html>\n<head>')
+        r.append('<meta http-equiv="Content-Type" '
+                 'content="text/html; charset=%s">' % enc)
+        r.append('<title>%s</title>\n</head>' % title)
+        r.append('<body>\n<h1>%s</h1>' % title)
+        r.append('<hr>\n<ul>')
+        for name in lst:
+            displayname = linkname = name
+            fullname = os.path.join(path, name)
+            if os.path.isdir(fullname):
+                displayname = linkname = name + '/'
+            if os.path.islink(fullname):
+                displayname = name + '@'
+            r.append('<li><a href="%s">%s</a></li>'
+                     % (urllib.parse.quote(linkname),
+                        html.escape(displayname, quote=False)))
+        r.append('</ul>\n<hr>\n</body>\n</html>\n')
+        return '\n'.join(r).encode(enc), enc
+    def guess_content_type(path):
+        # TODO: use `http.server.SimpleHTTPRequestHandler.guess_type` method
+        import magic
+        return magic.from_file(fpath, mime=True)
+    path = normalize_path(environ.get('PATH_INFO', ''))
+    if os.path.isdir(path):
+        parts = urllib.parse.urlsplit(environ.get('PATH_INFO',''))
+        if not parts.path.endswith('/'):
+            # redirect browser like apache2 does
+            new_parts = (parts[0], parts[1], parts[2] + '/', parts[3], parts[4])
+            new_url = urllib.parse.urlunstplit(new_parts)
+            start_response('301 MOVEDPERMANENTLY', [('Location', new_url)])
+            return b''
+        else:
+            data, enc = generate_directory_listing(path)
+            start_response('200 OK', [('Content-type', 'text/html; charset=%s' % enc)
+                                      ('Content-Length', str(len(data)))])
+            return data
+    ctype = guess_content_type(path)
+    try:
+        f = open(path, 'rb')
+    except OSError:
+        start_response('404 NOTFOUND', [('Connection', 'close')
+
 def serve(app):
     from .http_utils import run_gunicorn
     try:
