@@ -16,5 +16,5 @@ def main():
                   ' '.join(termcolor(r(fg)+r(bg), fg, bg) for bg in [None]+list(range(50))))
 
     else:
-        # TODO: print all options
-        print('unknown command:', sys.argv[1:])
+        if sys.argv[1:]: print('unknown command:', sys.argv[1:])
+        print('available commands:\n  kpa termcolor\n  kpa status-code-server\n  kpa dir-server')

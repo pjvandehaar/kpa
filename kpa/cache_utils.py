@@ -1,6 +1,14 @@
 
 class lru_cache_set:
-    # keep a circular-doubly-linked-list of keys, sorted by how recently they were accessed
+    '''
+    A set that is limited to size `maxsize` by removing the least-recently-accessed item when necessary.
+    `.add()`ing an item that is already present simply updates the access time for that item.
+    Checking `item in cache` updates the access time for that item.
+
+    Items must be `hash()`able.
+
+    It is implemented with a dict and a circular-doubly-linked-list of items, sorted by how recently they were accessed.
+    '''
     OLDER, NEWER, KEY = 0, 1, 2
 
     def __init__(self, maxsize):
@@ -64,10 +72,10 @@ class lru_cache_set:
 
 
 class _lru_cache_set_slow:
-    'a simple but inefficient alternative to lru_cache_set'
+    'a simple but inefficient implementation of lru_cache_set'
     def __init__(self, maxsize):
         self.maxsize = maxsize
-        self._keys = []
+        self._keys = [] # oldest item is at self._keys[0], newest is at self._keys[-1]
     def __repr__(self):
         return repr(self._keys)
     def add(self, key):
