@@ -14,3 +14,9 @@ def only_once(func):
             already_ran[0] = True
             return func(*args, **kwargs)
     return f
+
+def list_from_iter(func):
+    @boltons.funcutils.wraps(func)
+    def f(*args, **kwargs):
+        return list(func(*args, **kwargs))
+    return f
