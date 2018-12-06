@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-# to install: `pip install -e .`
-# to upgrade: `pip3 install --upgrade --upgrade-strategy eager --no-cache-dir kpa`
+# to install locally: `pip install -e .`
+# to install latest from pypi: `pip3 install --upgrade --upgrade-strategy eager --no-cache-dir kpa`
 # to publish: `./setup.py publish`
+# to update deps: `kpa pip-find-updates`
 # to test: `./setup.py test`
 
 from setuptools import setup
