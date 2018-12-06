@@ -82,10 +82,10 @@ setup(
     zip_safe=False,
     python_requires=">=3.6",
     setup_requires=[
-        'pytest-runner~=4.0',
+        'pytest-runner~=4.2',
     ],
     install_requires=[],
     tests_require=[
-        'pytest~=3.4',
+        'pytest~=4.0',
     ],
 )
