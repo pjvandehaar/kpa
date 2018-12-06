@@ -12,7 +12,7 @@ def _jsonify_default(obj):
     else:
         if isinstance(obj, pd.DataFrame):
             return {'type=pandas.DataFrame': obj.to_json()}
-    raise TypeError(f'Object of type {o.__class__.__name__} is not JSON serializable!')
+    raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable!')
 
 
 def shelve_cache(func):

@@ -76,4 +76,4 @@ def cached_get(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:62.0) Gecko/20100101 Firefox/62.0',
                'Accept-Language':'en-US,en;q=0.5',
     }
-    return requests.get(url)
+    return requests.get(url, headers=headers)

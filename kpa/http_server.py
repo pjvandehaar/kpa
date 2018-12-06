@@ -1,4 +1,6 @@
 
+import sys, html, urllib
+
 
 def status_code_server(environ, start_response):
     # TODO: query all status codes using [urllib.request.urlopen, requests.get, requests.get.raise_for_status] to compare error-handling
@@ -91,7 +93,7 @@ def magic_directory_server(environ, start_response):
                         html.escape(displayname, quote=False)))
         r.append('</ul>\n<hr>\n</body>\n</html>\n')
         return '\n'.join(r).encode(enc), enc
-    def guess_content_type(path):
+    def guess_content_type(fpath):
         # TODO: use `http.server.SimpleHTTPRequestHandler.guess_type` method
         import magic
         return magic.from_file(fpath, mime=True)
@@ -113,7 +115,8 @@ def magic_directory_server(environ, start_response):
     try:
         f = open(path, 'rb')
     except OSError:
-        start_response('404 NOTFOUND', [('Connection', 'close')
+        start_response('404 NOTFOUND', [('Connection', 'close')])
+    # Note: work-in-progress
 
 def serve(app):
     from .http_utils import run_gunicorn
