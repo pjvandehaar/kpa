@@ -1,4 +1,4 @@
-import math, itertools, functools, collections, re
+import itertools, functools
 from boltons import iterutils
 
 def Fn(s):
