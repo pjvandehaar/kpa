@@ -12,13 +12,13 @@ def _jsonify_default(obj):
     else:
         if isinstance(obj, pd.DataFrame):
             return {'type=pandas.DataFrame': obj.to_json()}
-    raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable!')
+    raise TypeError('Object of type {obj.__class__.__name__} is not JSON serializable!'.format(**locals()))
 
 
 def shelve_cache(func):
     def new_f(*args, **kwargs):
         key = _jsonify([args, kwargs])
-        with shelve.open(f'.cache-{func.__name__}.shelve') as shelf:
+        with shelve.open('.cache-{func.__name__}.shelve'.format(**locals())) as shelf:
             if key not in shelf: shelf[key] = func(*args, **kwargs)
             return shelf[key]
     return new_f
@@ -31,7 +31,7 @@ def cached_generator(record_maker=lambda x:x):
     doesn't track args, so don't use any.
     '''
     def decorator(func):
-        cache_fpath = os.path.join(f'.cache-{func.__name__}.jsonlines')
+        cache_fpath = os.path.join('.cache-{func.__name__}.jsonlines'.format(**locals()))
         def newf(*args, **kwargs):
             if args or kwargs: raise Exception('cached_generator() cannot handle args or kwargs')
             if not os.path.exists(cache_fpath):

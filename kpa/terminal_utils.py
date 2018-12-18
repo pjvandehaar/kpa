@@ -21,10 +21,10 @@ def termcolor(text, fg=None, bg=None, under=False):
     from subprocess import check_output
     def get_code(args):
         if not hasattr(termcolor,'_cache'): termcolor._cache = {}
-        if termcolor._cache.get(args, None) is None: termcolor._cache[args] = check_output(f'tput {args}'.split()).decode()
+        if termcolor._cache.get(args, None) is None: termcolor._cache[args] = check_output('tput {args}'.format(args=args).split()).decode()
         return termcolor._cache[args]
-    return ((get_code(f'setaf {fg}') if fg else '') +
-            (get_code(f'setab {bg}') if bg else '') +
+    return ((get_code('setaf {fg}'.format(fg=fg)) if fg else '') +
+            (get_code('setab {bg}'.format(bg=bg)) if bg else '') +
             (get_code('smul') if under else '') +
             text + get_code('sgr0'))
 termcolor.BG_RED = 1

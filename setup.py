@@ -33,8 +33,8 @@ if sys.argv[-1] in ['publish', 'pub']:
         new_version_parts = version.split('.')
         new_version_parts[2] = str(1+int(new_version_parts[2]))
         new_version = '.'.join(new_version_parts)
-        print(f'=> autoincrementing version {version} -> {new_version}')
-        Path('kpa/version.py').write_text(f"version = '{new_version}'\n")
+        print('=> autoincrementing version {version} -> {new_version}'.format(version=version, new_version=new_version))
+        Path('kpa/version.py').write_text("version = '{new_version}'\n".format(new_version=new_version))
         version = new_version
         subprocess.run(['git','stage','kpa/version.py'])
 
@@ -81,7 +81,7 @@ setup(
     ]},
     include_package_data=True,
     zip_safe=False,
-    python_requires=">=3.6",
+    python_requires=">=3.4",
     setup_requires=[
         'pytest-runner~=4.2',
     ],

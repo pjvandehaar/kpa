@@ -30,7 +30,7 @@ def status_code_server(environ, start_response):
         ret = 'following xxx path for {}\n'.format(path)
         start_response(status, headers); return [ret.encode('utf8')]
 
-    raise Exception(f'bad url: {path}')
+    raise Exception('bad url: {path}'.format(**locals()))
 
 
 def magic_directory_server(environ, start_response):

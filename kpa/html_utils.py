@@ -16,11 +16,11 @@ def limit_width(text, maxwidth):
 
 def repr_node(node):
     if isinstance(node, str): return repr(node)
-    ret = f'<{node.name}'
-    if 'id' in node.attrs: ret += f' id="{node.attrs["id"]}"'
-    if 'class' in node.attrs: ret += f' class="{" ".join(node.attrs["class"])}"'
+    ret = '<{node.name}'.format(node=node)
+    if 'id' in node.attrs: ret += ' id="{node.attrs["id"]}"'.format(node=node)
+    if 'class' in node.attrs: ret += ' class="{" ".join(node.attrs["class"])}"'.format(node=node)
     for k,v in node.attrs.items():
-        if k not in ('id','class'): ret += f' {k}="{v}"'
+        if k not in ('id','class'): ret += ' {k}="{v}"'.format(**locals())
     return ret + '>'
 
 
@@ -32,7 +32,7 @@ def render_tree(node, depth=1):
                 for line in render_tree(child, depth=depth-1).split('\n'): ret += '\n   ' + line
         else:
             num_descendants = sum(1 for _ in node.descendants)
-            ret += f'\n   ... {num_descendants}'
+            ret += '\n   ... {num_descendants}'.format(**locals())
     return ret
 def print_tree(node, depth=1, maxwidth=None):
     print(limit_width(render_tree(node, depth), maxwidth))

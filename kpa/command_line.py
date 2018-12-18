@@ -15,9 +15,9 @@ def main():
     elif sys.argv[1:] == ['termcolor']:
         from .terminal_utils import termcolor
         def r(num): return '#' if num is None else str(num%10)
-        print('    # ' + ' '.join(f'{bg:2}' for bg in range(50)))
+        print('    # ' + ' '.join('{bg:2}'.format(bg=bg) for bg in range(50)))
         for fg in [None]+list(range(0,25)):
-            print(f'{fg if fg is not None else "#":<2} ' +
+            print('{fg if fg is not None else "#":<2} '.format(fg=fg) +
                   ' '.join(termcolor(r(fg)+r(bg), fg, bg) for bg in [None]+list(range(50))))
 
     elif sys.argv[1:] and sys.argv[1] == "pip-find-updates":
@@ -35,7 +35,7 @@ def main():
             return None
         if not filepath: print('argv[2] not found and failed to find setup.py or requirements.txt in parent dirs')
         else:
-            print(f'Looking at {filepath}')
+            print('Looking at {filepath}'.format(filepath=filepath))
             check_file(filepath)
 
     else:

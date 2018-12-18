@@ -26,9 +26,9 @@ def _fmt_group(chars):
         elif char.isupper(): uppers.append(char)
         elif char.islower(): lowers.append(char)
         else: etcs.append(char)
-    ret = ''.join(f'{x[0]}-{x[1]}' if isinstance(x,tuple) else f'{x}' for x in _collapse_runs(map(int,digits)))
-    ret += ''.join(f'{chr(x[0])}-{chr(x[1])}' if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,lowers)))
-    ret += ''.join(f'{chr(x[0])}-{chr(x[1])}' if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,uppers)))
+    ret = ''.join('{x[0]}-{x[1]}'.format(x=x) if isinstance(x,tuple) else str(x) for x in _collapse_runs(map(int,digits)))
+    ret += ''.join('{chr(x[0])}-{chr(x[1])}'.format(x=x) if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,lowers)))
+    ret += ''.join('{chr(x[0])}-{chr(x[1])}'.format(x=x) if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,uppers)))
     ret += ''.join(sorted(etcs))
     return '[' + ret +']'
 
@@ -56,9 +56,9 @@ if __name__ == '__main__':
     # TODO: run tests with pytest
 
     datasets = [
-            [f'{code:03}' for code in range(0,100+1)],
+            ['{code:03}'.format(code=code) for code in range(0,100+1)],
 
-            [f'{code}' for code in range(0,100+1)],
+            ['{code}'.format(code=code) for code in range(0,100+1)],
 
             (
                 '310 311 312 313 314 315 316 317 318 319 320 321 322 323 324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 347 348 349 350 351 352 353 354 355 356 357 358 359 360 361 362 363 364 365 366 367 368 369 370 371 372 373 374 375 376 377 378 379 380 381 382 383 384 385 386'.split() +
