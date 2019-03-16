@@ -13,7 +13,6 @@ def status_code_server(environ, start_response):
     #    - 300-399 otherwise => HTTPError / ok
     #    - 400-599 => HTTPError / ok (but raise_for_status raises requests.exceptions.HTTPError)
     #    - 600-999 => HTTPError / ok
-    import re
     headers = [('Content-type', 'text/plain')]
     path = environ.get('PATH_INFO','')
 
@@ -38,10 +37,36 @@ def make_redirect_server(target_base_url):
     def redirect_server(environ, start_response):
         headers = [('Content-type', 'text/plain')]
         path = environ.get('PATH_INFO','')
-        headers.append(('Location', '{}{}'.format(target_base_url, path)))
-        ret = 'redirecting to {}{}\n'.format(target_base_url, path)
-        start_response('302 Found', headers); return [ret.encode('utf8')]
+        if re.match(r'^[-/a-zA-Z0-9%\.+~_=:]*$', path):
+            status = '302 Found'
+            headers.append(('Location', '{}{}'.format(target_base_url, path)))
+            ret = 'redirecting to {}{}\n'.format(target_base_url, path)
+        else:
+            status = '404 Not Found'
+            ret = 'URL not permitted\n'
+        start_response(status, headers); return [ret.encode('utf8')]
     return redirect_server
+
+def directory_server(environ, start_response):
+    # TODO: just implement a simple version by hand
+    def normalize_path(path):
+        # This code is taken from http.server.SimpleHTTPRequestHandler.translate_path()
+        import urllib.parse, posixpath
+        path = path.split('?', 1)[0]
+        path = path.split('#', 1)[0]
+        path = urllib.parse.unquote(path)
+        path = posixpath.normpath(path)
+        words = [word for word in path.split('/') if word]
+        path = os.getcwd()
+        for word in words:
+            if os.path.dirname(word) or word in (os.curdir, os.pardir):
+                # ignore components like `.`, `..`, (and also somehow directories?)
+                continue
+            path = os.path.join(path, word)
+        return path
+    path = normalize_path(environ.get('PATH_INFO', ''))
+    
+
 
 def magic_directory_server(environ, start_response):
     # This is like `python3 -m http.server` (http.server.SimpleHTTPRequestHandler).
@@ -54,7 +79,6 @@ def magic_directory_server(environ, start_response):
     #    It's run using `http.server.test(HandlerClass=MimeSniffingHTTPRequestHandler, ServerClass=http.server.HTTPServer)`
     #       which uses `http.server.HTTPServer(('localhost', 8001), MimeSniffingHTTPRequestHandler).serve_forever()`
     #          which extends `socketserver.TCPServer`
-    import os
     def normalize_path(path):
         # This code is taken from http.server.SimpleHTTPRequestHandler.translate_path()
         import urllib.parse, posixpath
