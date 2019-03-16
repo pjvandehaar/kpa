@@ -30,7 +30,7 @@ def open_browser(url):
     return False
 
 
-def run_gunicorn(app, host='localhost', port=5000, use_reloader=True, num_workers=4, accesslog='-'):
+def run_gunicorn(app, host='0.0.0.0', port=5000, use_reloader=True, num_workers=4, accesslog='-'):
     '''takes a flask app or perhaps other kinds of wsgi apps'''
     # TODO: figure out how to suppress sigwinch
     import gunicorn.app.base

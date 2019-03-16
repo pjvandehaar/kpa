@@ -12,6 +12,12 @@ def main():
         from .http_server import serve, magic_dir_server
         serve(magic_dir_server)
 
+    elif sys.argv[1:] and sys.argv[1] == 'redirect-server':
+        from .http_server import serve, make_redirect_server
+        port = int(sys.argv[2])
+        target_base_url = sys.argv[3]
+        serve(make_redirect_server(target_base_url), port=port)
+
     elif sys.argv[1:] == ['termcolor']:
         from .terminal_utils import termcolor
         def r(num): return '#' if num is None else str(num%10)

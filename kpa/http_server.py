@@ -1,5 +1,5 @@
 
-import sys, html, urllib
+import sys, html, urllib, re, os
 
 
 def status_code_server(environ, start_response):
@@ -32,6 +32,16 @@ def status_code_server(environ, start_response):
 
     raise Exception('bad url: {path}'.format(**locals()))
 
+
+def make_redirect_server(target_base_url):
+    assert re.match(r'https?://(?:[-a-z0-9]+\.)+[-a-z0-9]+(?:/.*)?', target_base_url)
+    def redirect_server(environ, start_response):
+        headers = [('Content-type', 'text/plain')]
+        path = environ.get('PATH_INFO','')
+        headers.append(('Location', '{}{}'.format(target_base_url, path)))
+        ret = 'redirecting to {}{}\n'.format(target_base_url, path)
+        start_response('302 Found', headers); return [ret.encode('utf8')]
+    return redirect_server
 
 def magic_directory_server(environ, start_response):
     # This is like `python3 -m http.server` (http.server.SimpleHTTPRequestHandler).
@@ -118,9 +128,9 @@ def magic_directory_server(environ, start_response):
         start_response('404 NOTFOUND', [('Connection', 'close')])
     # Note: work-in-progress
 
-def serve(app):
+def serve(app, port=5000):
     from .http_utils import run_gunicorn
     try:
-        run_gunicorn(app)
+        run_gunicorn(app, port=port, use_reloader=False)
     except KeyboardInterrupt:
         pass
