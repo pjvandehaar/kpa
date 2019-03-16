@@ -46,4 +46,4 @@ def main():
 
     else:
         if sys.argv[1:]: print('unknown command:', sys.argv[1:])
-        print('available commands:\n  kpa termcolor\n  kpa status-code-server\n  kpa dir-server\n  kpa pip-find-updates')
+        print('available commands:\n  kpa termcolor\n  kpa status-code-server\n  kpa redirect-server\n  kpa pip-find-updates')
