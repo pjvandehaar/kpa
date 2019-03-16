@@ -50,7 +50,7 @@ def run_gunicorn(app, host='0.0.0.0', port=5000, use_reloader=True, num_workers=
         'reload': use_reloader,
         'workers': num_workers,
         'accesslog': accesslog,
-        'access_log_format': '%(t)s | %(s)s | %(L)ss | %(m)s %(U)s | resp_len:%(B)s | referrer:"%(f)s" | ip:%(h)s | agent:%(a)s',
+        'access_log_format': '%(t)s | %(s)s | %(L)ss | %(m)s %(U)s %(q)s | resp_len:%(B)s | referrer:"%(f)s" | ip:%(h)s | agent:%(a)s',
         # docs @ <http://docs.gunicorn.org/en/stable/settings.html#access-log-format>
         'worker_class': 'gevent',
     }

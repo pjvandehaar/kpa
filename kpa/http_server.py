@@ -37,7 +37,9 @@ def make_redirect_server(target_base_url):
     def redirect_server(environ, start_response):
         headers = [('Content-type', 'text/plain')]
         path = environ.get('PATH_INFO','')
-        if re.match(r'^[-/a-zA-Z0-9%\.+~_=:]*$', path):
+        if environ.get('QUERY_STRING'):
+            path += '?' + environ.get('QUERY_STRING')
+        if re.match(r'^[-/a-zA-Z0-9%\.+~_=:\?&]*$', path):
             status = '302 Found'
             headers.append(('Location', '{}{}'.format(target_base_url, path)))
             ret = 'redirecting to {}{}\n'.format(target_base_url, path)
