@@ -11,7 +11,7 @@ def check_pkg(pkg, opt, version, line=None):
     if opt is None: opt=''
     if version is None: version=''
     try:
-        j = json.loads(urllib.request.urlopen('https://pypi.python.org/pypi/{}/json'.format(pkg)).read())
+        j = json.loads(urllib.request.urlopen('https://pypi.org/pypi/{}/json'.format(pkg)).read())
         latest = j['info']['version']
         v = version.lstrip('~=>')
         update_str = '' if latest == v or latest==v+'.0' or latest.startswith(v) else '>>'

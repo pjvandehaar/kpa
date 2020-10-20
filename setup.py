@@ -6,14 +6,18 @@
 # to test: `./setup.py test`
 
 from setuptools import setup
-import imp
+import importlib
 import sys
 from pathlib import Path
 from urllib.request import urlopen
 import subprocess
 import json
 
-version = imp.load_source('kpa.version', 'kpa/version.py').version
+def load_module_by_path(module_name, filepath):
+    module = importlib.util.module_from_spec(importlib.util.spec_from_file_location(module_name, filepath))
+    module.__spec__.loader.exec_module(module)
+    return module
+version = load_module_by_path('kpa.version', 'kpa/version.py').version
 
 
 if sys.argv[-1] in ['publish', 'pub']:
@@ -85,7 +89,9 @@ setup(
     setup_requires=[
         'pytest-runner~=4.2',
     ],
-    install_requires=[],
+    install_requires=[
+        'boltons~=20.2',
+    ],
     tests_require=[
         'pytest~=4.0',
     ],

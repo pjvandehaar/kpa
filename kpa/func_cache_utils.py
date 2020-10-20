@@ -18,9 +18,17 @@ def _jsonify_default(obj):
 def shelve_cache(func):
     def new_f(*args, **kwargs):
         key = _jsonify([args, kwargs])
-        with shelve.open('.cache-{func.__name__}.shelve'.format(**locals())) as shelf:
-            if key not in shelf: shelf[key] = func(*args, **kwargs)
-            return shelf[key]
+        filename = '.cache-{func.__name__}.shelve'.format(**locals())
+        # with shelve.open(filename) as shelf:
+        #     if key not in shelf: shelf[key] = func(*args, **kwargs)
+        #     return shelf[key]
+        with shelve.open(filename) as shelf:
+            if key in shelf: return shelf[key]
+        # release the file to allow other processes to use it
+        # this function is meant for slow functions, so this extra closing and opening isn't significant
+        ret = func(*args, **kwargs)
+        with shelve.open(filename) as shelf: shelf[key] = ret
+        return ret
     return new_f
 
 

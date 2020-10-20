@@ -20,14 +20,18 @@ def status_code_server(environ, start_response):
     if m:
         status = m.group(1) + ' WAT'
         headers.append(('Location', '/{}'.format(m.group(2))))
-        ret = 'following xxx -> xxx path for {}\n'.format(path)
-        start_response(status, headers); return [ret.encode('utf8')]
+        ret = 'following xxx -> xxx path for {}\n'.format(path).encode('utf8')
+        headers.append(('Content-Length', str(len(ret))))
+        start_response(status, headers)
+        return [ret]
 
     m = re.match(r'^/([0-9]{3})$', path)
     if m:
         status = m.group(1) + ' WAT'
-        ret = 'following xxx path for {}\n'.format(path)
-        start_response(status, headers); return [ret.encode('utf8')]
+        ret = 'following xxx path for {}\n'.format(path).encode('utf8')
+        headers.append(('Content-Length', str(len(ret))))
+        start_response(status, headers)
+        return [ret]
 
     raise Exception('bad url: {path}'.format(**locals()))
 
@@ -67,7 +71,7 @@ def directory_server(environ, start_response):
             path = os.path.join(path, word)
         return path
     path = normalize_path(environ.get('PATH_INFO', ''))
-    
+
 
 
 def magic_directory_server(environ, start_response):
