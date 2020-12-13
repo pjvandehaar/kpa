@@ -79,6 +79,7 @@ setup(
         'Operating System :: Unix',
     ],
 
+    package_data={'kpa': ['py.typed']},  # tells mypy this has types
     packages=['kpa'],
     entry_points={'console_scripts': [
         'kpa=kpa.command_line:main',
