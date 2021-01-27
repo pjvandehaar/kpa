@@ -27,8 +27,8 @@ def _fmt_group(chars):
         elif char.islower(): lowers.append(char)
         else: etcs.append(char)
     ret = ''.join('{x[0]}-{x[1]}'.format(x=x) if isinstance(x,tuple) else str(x) for x in _collapse_runs(map(int,digits)))
-    ret += ''.join('{chr(x[0])}-{chr(x[1])}'.format(x=x) if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,lowers)))
-    ret += ''.join('{chr(x[0])}-{chr(x[1])}'.format(x=x) if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,uppers)))
+    ret += ''.join('{}-{}'.format(chr(x[0]), chr(x[1])) if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,lowers)))
+    ret += ''.join('{}-{}'.format(chr(x[0]), chr(x[1])) if isinstance(x,tuple) else chr(x) for x in _collapse_runs(map(ord,uppers)))
     ret += ''.join(sorted(etcs))
     return '[' + ret +']'
 

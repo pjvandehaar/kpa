@@ -17,8 +17,8 @@ def limit_width(text, maxwidth):
 def repr_node(node):
     if isinstance(node, str): return repr(node)
     ret = '<{node.name}'.format(node=node)
-    if 'id' in node.attrs: ret += ' id="{node.attrs["id"]}"'.format(node=node)
-    if 'class' in node.attrs: ret += ' class="{" ".join(node.attrs["class"])}"'.format(node=node)
+    if 'id' in node.attrs: ret += ' id="{}"'.format(node.attrs["id"])
+    if 'class' in node.attrs: ret += ' class="{}"'.format(" ".join(node.attrs["class"]))
     for k,v in node.attrs.items():
         if k not in ('id','class'): ret += ' {k}="{v}"'.format(**locals())
     return ret + '>'

@@ -23,7 +23,7 @@ def main():
         def r(num): return '#' if num is None else str(num%10)
         print('    # ' + ' '.join('{bg:2}'.format(bg=bg) for bg in range(50)))
         for fg in [None]+list(range(0,25)):
-            print('{fg if fg is not None else "#":<2} '.format(fg=fg) +
+            print('{fg:<2} '.format(fg=(fg if fg is not None else '#')) +
                   ' '.join(termcolor(r(fg)+r(bg), fg, bg) for bg in [None]+list(range(50))))
 
     elif sys.argv[1:] and sys.argv[1] == "pip-find-updates":
