@@ -30,12 +30,8 @@ def upload_package(package_name:str, current_version:str) -> None:
     git_index_returncode = subprocess.run('git diff-index --quiet --cached HEAD'.split()).returncode
     assert git_index_returncode in [0,1]
     if git_index_returncode == 1:
-        print('=> git index has changes')
+        print('=> git index has changes; committing them')
         subprocess.run(['git','commit','-m',current_version], check=True)
-
-    # Make sure there's a ~/.pypirc
-    if not Path('~/.pypirc').expanduser().exists():
-        print('=> warning: you need a ~/.pypirc')
 
     # Clean and repopulate ./dist/*
     if Path('dist').exists() and list(Path('dist').iterdir()):
@@ -49,6 +45,8 @@ def upload_package(package_name:str, current_version:str) -> None:
     subprocess.run('python3 setup.py sdist bdist_wheel'.split(), check=True)
 
     # Upload
+    if not Path('~/.pypirc').expanduser().exists():
+        print('=> warning: you need a ~/.pypirc')
     try: subprocess.run(['twine','--version'], check=True)
     except Exception: print('Run `pip3 install twine` and try again'); sys.exit(1)
     subprocess.run('twine upload dist/*'.split(), check=True)
