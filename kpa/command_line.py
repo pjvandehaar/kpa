@@ -46,4 +46,6 @@ def main():
 
     else:
         if sys.argv[1:]: print('unknown command:', sys.argv[1:])
+        from kpa.version import version
+        print(f'kpa version {version}\n')
         print('available commands:\n  kpa termcolor\n  kpa status-code-server\n  kpa redirect-server\n  kpa pip-find-updates')
