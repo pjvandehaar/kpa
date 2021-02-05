@@ -3,7 +3,6 @@
 # to install latest from pypi: `pip3 install --upgrade --upgrade-strategy eager --no-cache-dir kpa`
 # to publish: `./setup.py publish`
 # to update deps: `kpa pip-find-updates`
-# to test: `./setup.py test`
 
 from setuptools import setup
 import importlib
@@ -18,8 +17,8 @@ version = load_module_by_path('kpa.version', 'kpa/version.py').version
 
 
 if sys.argv[-1] in ['publish', 'pub']:
-    upload_package = load_module_by_path('kpa.pypi_utils', 'kpa/pypi_utils.py').upload_package
-    upload_package(package_name='Kpa', current_version=version)
+    pypi_utils = load_module_by_path('kpa.pypi_utils', 'kpa/pypi_utils.py')
+    pypi_utils.upload_package(package_name='Kpa', current_version=version)
     sys.exit(0)
 
 
