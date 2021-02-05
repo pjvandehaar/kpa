@@ -1,10 +1,10 @@
-
+from typing import Any, cast, Callable, TypeVar, Iterator
 import shelve, json, os.path
 
 
-def _jsonify(obj):
+def _jsonify(obj: Any) -> str:
     return json.dumps(obj, default=_jsonify_default)
-def _jsonify_default(obj):
+def _jsonify_default(obj: Any) -> Any:
     try:
         import pandas as pd
     except ImportError:
@@ -15,8 +15,10 @@ def _jsonify_default(obj):
     raise TypeError('Object of type {obj.__class__.__name__} is not JSON serializable!'.format(**locals()))
 
 
-def shelve_cache(func):
-    def new_f(*args, **kwargs):
+F = TypeVar('F', bound=Callable[..., Any])
+
+def shelve_cache(func:F) -> F:
+    def wrapper(*args, **kwargs):
         key = _jsonify([args, kwargs])
         filename = '.cache-{func.__name__}.shelve'.format(**locals())
         # with shelve.open(filename) as shelf:
@@ -29,18 +31,21 @@ def shelve_cache(func):
         ret = func(*args, **kwargs)
         with shelve.open(filename) as shelf: shelf[key] = ret
         return ret
-    return new_f
+    return cast(F, wrapper)
 
 
-def cached_generator(record_maker=lambda x:x):
+T = TypeVar('T')
+F2 = TypeVar('F2', bound=Callable[[], Iterator[T]])
+
+def cached_generator(record_maker:Callable[[Any],T]=lambda x:x) -> Callable[[F2],F2]:
     '''
-    caches a generator into jsonlines format.
-    calls record_maker on each un-serialized line before yielding it.
-    doesn't track args, so don't use any.
+    Caches a generator into jsonlines format.
+    Deserialization is done by `record_maker(json.loads(line))`.
+    Doesn't track args, so don't use any.
     '''
-    def decorator(func):
+    def decorator(func:F2) -> F2:
         cache_fpath = os.path.join('.cache-{func.__name__}.jsonlines'.format(**locals()))
-        def newf(*args, **kwargs):
+        def wrapper(*args, **kwargs):
             if args or kwargs: raise Exception('cached_generator() cannot handle args or kwargs')
             if not os.path.exists(cache_fpath):
                 with open(cache_fpath+'.tmp', 'wt') as f:
@@ -52,5 +57,5 @@ def cached_generator(record_maker=lambda x:x):
                 with open(cache_fpath, 'rt') as f:
                     for line in f:
                         yield record_maker(json.loads(line))
-        return newf
+        return cast(F2, wrapper)
     return decorator
