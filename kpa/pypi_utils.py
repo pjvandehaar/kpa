@@ -1,12 +1,11 @@
 from pathlib import Path
 import urllib.request
 import subprocess, json, sys
-import kpa.version
 
 
-def upload_package(package_name:str, ):
+def upload_package(package_name:str, current_version:str) -> None:
     # TODO: look into `class UploadCommand(setuptools.Command)` from <https://github.com/kennethreitz/setup.py/blob/master/setup.py#L49>
-    package_dir = package_name.lower()
+    package_name = package_name.lower()
 
     # Make sure there's no unstaged changes
     git_workdir_returncode = subprocess.run('git diff-files --quiet'.split()).returncode
@@ -20,21 +19,19 @@ def upload_package(package_name:str, ):
     pypi_url = f'https://pypi.python.org/pypi/{package_name}/json'
     latest_version = json.loads(urllib.request.urlopen(pypi_url).read())['info']['version']
     # Note: it takes pypi a minute to update the API, so this can be wrong.
-    version = kpa.version.version
-    print(version, version)
-    if latest_version == version:
-        new_version = next_version(version)
-        print(f'=> autoincrementing version {version} -> {new_version}')
-        Path(f'{package_dir}/version.py').write_text(f"version = '{new_version}'\n")
-        version = new_version
-        subprocess.run(['git','stage',f'{package_dir}/version.py'], check=True)
+    if latest_version == current_version:
+        new_version = next_version(current_version)
+        print(f'=> autoincrementing version {current_version} -> {new_version}')
+        Path(f'{package_name}/version.py').write_text(f"version = '{new_version}'\n")
+        current_version = new_version
+        subprocess.run(['git','stage',f'{package_name}/version.py'], check=True)
 
     # Commit any staged changes
     git_index_returncode = subprocess.run('git diff-index --quiet --cached HEAD'.split()).returncode
     assert git_index_returncode in [0,1]
     if git_index_returncode == 1:
         print('=> git index has changes')
-        subprocess.run(['git','commit','-m',version], check=True)
+        subprocess.run(['git','commit','-m',current_version], check=True)
 
     # Make sure there's a ~/.pypirc
     if not Path('~/.pypirc').expanduser().exists():
@@ -44,9 +41,9 @@ def upload_package(package_name:str, ):
     if Path('dist').exists() and list(Path('dist').iterdir()):
         # Double check that we are where we think we are
         setuppy = Path('dist').absolute().parent / 'setup.py'
-        assert setuppy.is_file() and package_name in setuppy.read_text()
+        assert setuppy.is_file() and package_name in setuppy.read_text().lower()
         for child in Path('dist').absolute().iterdir():
-            assert child.name.lower().startswith(f'{package_dir}-'), child
+            assert child.name.lower().startswith(f'{package_name}-'), child
             print('=> unlinking', child)
             child.unlink()
     subprocess.run('python3 setup.py sdist bdist_wheel'.split(), check=True)
