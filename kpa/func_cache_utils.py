@@ -59,3 +59,24 @@ def cached_generator(record_maker:Callable[[Any],T]=lambda x:x) -> Callable[[F2]
                         yield record_maker(json.loads(line))
         return cast(F2, wrapper)
     return decorator
+
+def cached_generator_json(func:F2) -> F2:
+    '''
+    Caches a generator into jsonlines format.
+    Deserialization is done by `json.loads(line)`.
+    Doesn't track args, so don't use any.
+    '''
+    cache_fpath = os.path.join('.cache-{func.__name__}.jsonlines'.format(**locals()))
+    def wrapper(*args, **kwargs):
+        if args or kwargs: raise Exception('cached_generator() cannot handle args or kwargs')
+        if not os.path.exists(cache_fpath):
+            with open(cache_fpath+'.tmp', 'wt') as f:
+                for r in func():
+                    f.write(json.dumps(r) + '\n')
+                    yield r
+            os.rename(cache_fpath+'.tmp', cache_fpath)
+        else:
+            with open(cache_fpath, 'rt') as f:
+                for line in f:
+                    yield record_maker(json.loads(line))
+    return cast(F2, wrapper)
