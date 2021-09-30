@@ -78,5 +78,5 @@ def cached_generator_json(func:F2) -> F2:
         else:
             with open(cache_fpath, 'rt') as f:
                 for line in f:
-                    yield record_maker(json.loads(line))
+                    yield json.loads(line)
     return cast(F2, wrapper)
