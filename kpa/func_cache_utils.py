@@ -18,9 +18,9 @@ def _jsonify_default(obj: Any) -> Any:
 F = TypeVar('F', bound=Callable[..., Any])
 
 def shelve_cache(func:F) -> F:
+    filename = '.cache-{func.__name__}.shelve'.format(**locals())
     def wrapper(*args, **kwargs):
         key = _jsonify([args, kwargs])
-        filename = '.cache-{func.__name__}.shelve'.format(**locals())
         # with shelve.open(filename) as shelf:
         #     if key not in shelf: shelf[key] = func(*args, **kwargs)
         #     return shelf[key]
@@ -31,6 +31,14 @@ def shelve_cache(func:F) -> F:
         ret = func(*args, **kwargs)
         with shelve.open(filename) as shelf: shelf[key] = ret
         return ret
+    return cast(F, wrapper)
+
+def cache_by_id(func:F) -> F:
+    cache = {}
+    def wrapper(*args, **kwargs):
+        key = _jsonify([[id(arg) for arg in args], {k:id(v) for k,v in kwargs}])
+        if key not in cache: cache[key] = func(*args, **kwargs)
+        return cache[key]
     return cast(F, wrapper)
 
 

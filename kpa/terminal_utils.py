@@ -16,7 +16,7 @@ def ignore_sigpipe():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
-def termcolor(text, fg=None, bg=None, under=False):
+def termcolor(text:str, fg:int = None, bg:int = None, under:bool = False) -> str:
     # TODO: look at <https://github.com/kennethreitz/crayons/blob/master/crayons.py>
     from subprocess import check_output
     def get_code(args):
