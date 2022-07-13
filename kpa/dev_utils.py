@@ -1,4 +1,4 @@
-import time, random
+import time, random, sys
 from pathlib import Path
 from functools import wraps
 
@@ -23,3 +23,26 @@ def run_mypy(filepath:str = '', make_cache:bool = True) -> None:
     p = subprocess.run(cmd)
     if p.returncode != 0: sys.exit(1)
 
+
+def get_size(obj, seen:set = None) -> int:
+    """Recursively finds size of objects"""
+    # Question: Does this function consume iterators?
+    if seen is None: seen = set()
+    size = sys.getsizeof(obj)
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    seen.add(obj_id)  # Mark as seen *before* recursing to handle self-referential objects
+
+    if isinstance(obj, dict):
+        size += sum(get_size(v, seen) for v in obj.values())
+        size += sum(get_size(k, seen) for k in obj.keys())
+    elif hasattr(obj, '__dict__'):
+        size += get_size(obj.__dict__, seen)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum(get_size(i, seen) for i in obj)
+
+    if hasattr(obj, '__slots__'):  # obj can have both __slots__ and __dict__
+        size += sum(get_size(getattr(obj, s), seen) for s in obj.__slots__ if hasattr(obj, s))
+
+    return size
