@@ -25,8 +25,8 @@ def run_mypy(filepath:str = '', make_cache:bool = True) -> None:
 
 
 def get_size(obj, seen:set = None) -> int:
-    """Recursively finds size of objects"""
-    # Question: Does this function consume iterators?
+    """Recursively calculates bytes of RAM taken by object"""
+    # From https://code.activestate.com/recipes/577504/ and https://github.com/bosswissam/pysize/blob/master/pysize.py
     if seen is None: seen = set()
     size = sys.getsizeof(obj)
     obj_id = id(obj)
