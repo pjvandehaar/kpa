@@ -6,3 +6,5 @@ def _f() -> None:
         sys.exit(1)
 _f()
 del _f
+
+from .dev_utils import run as lint
