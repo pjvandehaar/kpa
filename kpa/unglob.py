@@ -22,7 +22,7 @@ def _fmt_group(chars):
     if any(char not in ascii_printable for char in chars): raise
     digits, uppers, lowers, etcs = [], [], [], []
     for char in chars:
-        if   char.isdigit(): digits.append(char)
+        if char.isdigit(): digits.append(char)
         elif char.isupper(): uppers.append(char)
         elif char.islower(): lowers.append(char)
         else: etcs.append(char)

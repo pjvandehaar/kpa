@@ -43,15 +43,16 @@ def cache_by_id(func:F) -> F:
 
 
 T = TypeVar('T')
-F2 = TypeVar('F2', bound=Callable[[], Iterator[T]])
+TGen = Callable[[], Iterator[T]]
 
-def cached_generator(record_maker:Callable[[Any],T]=lambda x:x) -> Callable[[F2],F2]:
+def cached_generator(record_maker:Callable[[Any],T] = lambda x:x) -> Callable[[TGen],TGen]:
     '''
     Caches a generator into jsonlines format.
-    Deserialization is done by `record_maker(json.loads(line))`.
+    Serialization is done by `line = json.dumps(item)`.
+    Deserialization is done by `item = record_maker(json.loads(line))`.
     Doesn't track args, so don't use any.
     '''
-    def decorator(func:F2) -> F2:
+    def decorator(func:TGen) -> TGen:
         cache_fpath = os.path.join('.cache-{func.__name__}.jsonlines'.format(**locals()))
         def wrapper(*args, **kwargs):
             if args or kwargs: raise Exception('cached_generator() cannot handle args or kwargs')
@@ -65,10 +66,10 @@ def cached_generator(record_maker:Callable[[Any],T]=lambda x:x) -> Callable[[F2]
                 with open(cache_fpath, 'rt') as f:
                     for line in f:
                         yield record_maker(json.loads(line))
-        return cast(F2, wrapper)
+        return cast(TGen, wrapper)
     return decorator
 
-def cached_generator_json(func:F2) -> F2:
+def cached_generator_json(func:TGen) -> TGen:
     '''
     Caches a generator into jsonlines format.
     Deserialization is done by `json.loads(line)`.
@@ -87,4 +88,4 @@ def cached_generator_json(func:F2) -> F2:
             with open(cache_fpath, 'rt') as f:
                 for line in f:
                     yield json.loads(line)
-    return cast(F2, wrapper)
+    return cast(TGen, wrapper)

@@ -71,7 +71,7 @@ def directory_server(environ, start_response):
             path = os.path.join(path, word)
         return path
     path = normalize_path(environ.get('PATH_INFO', ''))
-
+    print(path)
 
 
 def magic_directory_server(environ, start_response):
@@ -152,10 +152,12 @@ def magic_directory_server(environ, start_response):
                                       ('Content-Length', str(len(data)))])
             return data
     ctype = guess_content_type(path)
+    print(ctype)
     try:
         f = open(path, 'rb')
     except OSError:
         start_response('404 NOTFOUND', [('Connection', 'close')])
+    print(f)
     # Note: work-in-progress
 
 def serve(app, port=5000):

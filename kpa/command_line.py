@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
+import pathlib, sys, argparse, os
+from typing import Optional
+
+
 def main():
-    import sys, pathlib
     from .func_utils import assign
 
-    if sys.argv[1:] == ['status-code-server']:
+    if sys.argv[1:2] == ['lint']:
+        from .dev_utils import lint_cli
+        lint_cli(sys.argv[2:])
+
+    elif sys.argv[1:] == ['status-code-server']:
         from .http_server import serve, status_code_server
         serve(status_code_server)
 
@@ -29,7 +37,7 @@ def main():
     elif sys.argv[1:] and sys.argv[1] == "pip-find-updates":
         from .pip_utils import check_file
         @assign
-        def filepath():
+        def filepath() -> Optional[str]:
             if sys.argv[2:]:
                 p = pathlib.Path(sys.argv[2])
                 return p.as_posix() if p.exists() else None
