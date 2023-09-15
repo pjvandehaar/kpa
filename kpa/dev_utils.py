@@ -35,7 +35,7 @@ def find_exe(name:str, filepath:str = '') -> str:
     print(f"[Failed to find {name}]")
     raise ExecutableNotFound()
 def find_exe_options(name:str, filepath:str = '') -> Iterator[str]:
-    try: yield subp.check_output(['which',name]).decode().strip()
+    try: yield subp.check_output(['which',name], stderr=subp.DEVNULL).decode().strip()
     except Exception: pass
     yield f'venv/bin/{name}'
     if filepath: yield f'{os.path.dirname(os.path.abspath(filepath))}/venv/bin/{name}'
@@ -62,7 +62,7 @@ def lint_cli(argv:List[str]) -> None:
         raise ExecutableNotFound()
     def find_exe_options(name:str) -> Iterator[str]:
         if args.venv_bin_dir: yield f'{args.venv_bin_dir}/{name}'
-        try: yield subp.check_output(['which',name]).decode().strip()
+        try: yield subp.check_output(['which',name], stderr=subp.DEVNULL).decode().strip()
         except Exception: pass
         yield f'venv/bin/{name}'
         for file in args.files: yield f'{os.path.dirname(os.path.abspath(file))}/venv/bin/{name}'
