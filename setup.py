@@ -41,14 +41,8 @@ setup(
     ]},
     include_package_data=True,
     zip_safe=False,
-    python_requires=">=3.4",
-    setup_requires=[
-        'pytest-runner~=4.2',
-    ],
+    python_requires=">=3.6",
     install_requires=[
-        'boltons~=20.2',
-    ],
-    tests_require=[
-        'pytest~=4.0',
+        'boltons>=20.2',
     ],
 )

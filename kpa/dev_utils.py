@@ -44,7 +44,7 @@ def find_exe_options(name:str, filepath:str = '') -> Iterator[str]:
 def lint_cli(argv:List[str]) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('files', nargs='+')
-    #parser.add_argument('--no-mypy-cache', action='store_true', help="Don't make .mypy_cache/")
+    #parser.add_argument('--no-mypy-cache', action='store_true', help="Don't make .mypy_cache/")  # Conflicts with `--install-types`.  Consider using `--cache-dir=/tmp/{slugify(args.files)}`.
     parser.add_argument('--run-rarely', action='store_true', help="Only when file is modified in last 30 seconds, or otherwise 1% of the time")
     parser.add_argument('--extra-flake8-ignores', help="Extra errors/warnings for flake8 to ignore")
     parser.add_argument('--venv-bin-dir', help="A path to venv/bin that has flake8 or mypy")
@@ -62,6 +62,8 @@ def lint_cli(argv:List[str]) -> None:
         raise ExecutableNotFound()
     def find_exe_options(name:str) -> Iterator[str]:
         if args.venv_bin_dir: yield f'{args.venv_bin_dir}/{name}'
+        yield f'{os.path.dirname(sys.executable)}/{name}'
+        yield f'{os.path.dirname(sys.argv[0])}/{name}'
         try: yield subp.check_output(['which',name], stderr=subp.DEVNULL).decode().strip()
         except Exception: pass
         yield f'venv/bin/{name}'
