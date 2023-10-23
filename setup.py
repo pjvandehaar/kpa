@@ -43,6 +43,6 @@ setup(
     zip_safe=False,
     python_requires=">=3.6",
     install_requires=[
-        'boltons>=20.2',
+        'boltons>=23.0',
     ],
 )
