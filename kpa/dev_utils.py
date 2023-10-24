@@ -5,6 +5,63 @@ from typing import Optional,Iterator,List
 
 class ExecutableNotFound(Exception): pass
 
+
+def lint_cli(argv:List[str]) -> None:
+    parser = argparse.ArgumentParser(prog='kpa lint')
+    parser.add_argument('files', nargs='*', help='If no files are passed, this uses **/*.py')
+    #parser.add_argument('--no-mypy-cache', action='store_true', help="Don't make .mypy_cache/")  # Conflicts with `--install-types`.  Consider using `--cache-dir=/tmp/{slugify(abspaths(args.files))}`.
+    parser.add_argument('--run-rarely', action='store_true', help="Only when file is modified in last 30 seconds, or otherwise 1%% of the time")
+    parser.add_argument('--extra-flake8-ignores', help="Extra errors/warnings for flake8 to ignore")
+    parser.add_argument('--venv-bin-dir', help="A path to venv/bin that has flake8 or mypy")
+    parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--watch', action='store_true', help='Watch files, and re-lint when files are updated')
+    args = parser.parse_args(argv)
+    if not args.files: args.files = list(get_all_py_files())
+    _lint_cli(args)
+def _lint_cli(args:argparse.Namespace) -> None:
+    if args.watch:
+        from .watcher import yield_when_files_update
+        args.watch = False
+        for _ in yield_when_files_update(args.files, and_also_immediately=True):
+            if len(args.files)<5: print(f'=====> linting {args.files}...')
+            else: print(f'=====> linting {len(args.files)} files...')
+            _lint_cli(args)
+            print('.\n')
+        exit(0)
+
+    if args.run_rarely:
+        seconds_since_last_change = time.time() - max(Path(path).stat().st_mtime for path in args.files)
+        if seconds_since_last_change > 30 and random.random() > 0.01: exit(0)
+
+    def find_exe(name:str) -> str:
+        for path in find_exe_options(name):
+            if os.path.exists(path): return path
+        print(f"[Failed to find {name}]")
+        raise ExecutableNotFound()
+    def find_exe_options(name:str) -> Iterator[str]:
+        if args.venv_bin_dir: yield f'{args.venv_bin_dir}/{name}'
+        yield f'{os.path.dirname(sys.executable)}/{name}'
+        yield f'{os.path.dirname(sys.argv[0])}/{name}'
+        try: yield subp.check_output(['which',name], stderr=subp.DEVNULL).decode().strip()
+        except Exception: pass
+        yield f'venv/bin/{name}'
+        for file in args.files: yield f'{os.path.dirname(os.path.abspath(file))}/venv/bin/{name}'
+    def print_and_run(cmd:List[str]) -> None:
+        if args.verbose: print(cmd)
+        p = subp.run(cmd)
+        if p.returncode != 0: print(f"\n{cmd[0]} failed"); exit(1)
+
+    flake8_ignore = 'B007,E116,E124,E126,E127,E128,E129,E201,E202,E203,E221,E222,E225,E226,E227,E228,E231,E241,E251,E261,E265,E266,E301,E302,E303,E305,E306,E401,E402,E501,E701,E702,E704,F401,F811,W292,W293,W391,W504'
+    if args.extra_flake8_ignores: flake8_ignore += ',' + args.extra_flake8_ignores
+    try: flake8_exe = find_exe('flake8')
+    except ExecutableNotFound: pass
+    else: print_and_run([flake8_exe, '--show-source', f'--ignore={flake8_ignore}', *args.files])
+
+    try: mypy_exe = find_exe('mypy')
+    except ExecutableNotFound: pass
+    else: print_and_run([mypy_exe, '--pretty', '--ignore-missing-imports', '--non-interactive', '--install-types', *args.files])
+
+
 def lint(filepath:str = '', make_cache:bool = True, run_rarely:bool = False) -> None:
     if run_rarely:
         seconds_since_last_change = time.time() - Path(filepath).stat().st_mtime
@@ -40,59 +97,13 @@ def find_exe_options(name:str, filepath:str = '') -> Iterator[str]:
     yield f'venv/bin/{name}'
     if filepath: yield f'{os.path.dirname(os.path.abspath(filepath))}/venv/bin/{name}'
 
-
-def lint_cli(argv:List[str]) -> None:
-    # TODO: If no files are passed, use all *.py here and in children, but not in `.*/`
-    parser = argparse.ArgumentParser(prog='kpa lint')
-    parser.add_argument('files', nargs='+')
-    #parser.add_argument('--no-mypy-cache', action='store_true', help="Don't make .mypy_cache/")  # Conflicts with `--install-types`.  Consider using `--cache-dir=/tmp/{slugify(abspaths(args.files))}`.
-    parser.add_argument('--run-rarely', action='store_true', help="Only when file is modified in last 30 seconds, or otherwise 1%% of the time")
-    parser.add_argument('--extra-flake8-ignores', help="Extra errors/warnings for flake8 to ignore")
-    parser.add_argument('--venv-bin-dir', help="A path to venv/bin that has flake8 or mypy")
-    parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--watch', action='store_true', help='Watch files, and re-lint when files are updated')
-    args = parser.parse_args(argv)
-
-    if args.watch:
-        from .watcher import yield_when_files_update
-        argv2 = [a for a in argv if a!='--watch']
-        assert len(argv2)+1 == len(argv), (argv, argv2)
-        for _ in yield_when_files_update(args.files, and_also_immediately=True):
-            print('=====> linting...')
-            lint_cli(argv2)
-            print('.\n')
-
-    if args.run_rarely:
-        seconds_since_last_change = time.time() - max(Path(path).stat().st_mtime for path in args.files)
-        if seconds_since_last_change > 30 and random.random() > 0.01: exit(0)
-
-    def find_exe(name:str) -> str:
-        for path in find_exe_options(name):
-            if os.path.exists(path): return path
-        print(f"[Failed to find {name}]")
-        raise ExecutableNotFound()
-    def find_exe_options(name:str) -> Iterator[str]:
-        if args.venv_bin_dir: yield f'{args.venv_bin_dir}/{name}'
-        yield f'{os.path.dirname(sys.executable)}/{name}'
-        yield f'{os.path.dirname(sys.argv[0])}/{name}'
-        try: yield subp.check_output(['which',name], stderr=subp.DEVNULL).decode().strip()
-        except Exception: pass
-        yield f'venv/bin/{name}'
-        for file in args.files: yield f'{os.path.dirname(os.path.abspath(file))}/venv/bin/{name}'
-    def print_and_run(cmd:List[str]) -> None:
-        if args.verbose: print(cmd)
-        p = subp.run(cmd)
-        if p.returncode != 0: print(f"\n{cmd[0]} failed"); exit(1)
-
-    flake8_ignore = 'B007,E116,E124,E126,E127,E128,E129,E201,E202,E203,E221,E222,E225,E226,E227,E228,E231,E241,E251,E261,E265,E266,E301,E302,E303,E305,E306,E401,E402,E501,E701,E702,E704,F401,F811,W292,W293,W391,W504'
-    if args.extra_flake8_ignores: flake8_ignore += ',' + args.extra_flake8_ignores
-    try: flake8_exe = find_exe('flake8')
-    except ExecutableNotFound: pass
-    else: print_and_run([flake8_exe, '--show-source', f'--ignore={flake8_ignore}', *args.files])
-
-    try: mypy_exe = find_exe('mypy')
-    except ExecutableNotFound: pass
-    else: print_and_run([mypy_exe, '--pretty', '--ignore-missing-imports', '--non-interactive', '--install-types', *args.files])
+def get_all_py_files(directory_:Optional[str] = None) -> Iterator[str]:
+    directory = Path(directory_) if directory_ else Path().absolute()
+    for filepath in directory.rglob('*.py'):
+        if '#' in filepath.name: continue
+        rel_path = filepath.relative_to(directory)
+        if any(str(name).startswith('.') and str(name)!='.' for name in rel_path.parents): continue
+        yield str(filepath)
 
 
 def get_size(obj, seen:Optional[set] = None) -> int:
