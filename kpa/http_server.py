@@ -19,8 +19,9 @@ def status_code_server(environ, start_response):
     m = re.match(r'^/([0-9]{3})/([0-9]{3})$', path)
     if m:
         status = m.group(1) + ' WAT'
-        headers.append(('Location', '/{}'.format(m.group(2))))
-        ret = 'following xxx -> xxx path for {}\n'.format(path).encode('utf8')
+        redirect_to = '/'+m.group(2)
+        headers.append(('Location', redirect_to))
+        ret = f'request was for {repr(path)}, so returning status {repr(status)} that redirects to {repr(redirect_to)}\n'.encode('utf8')
         headers.append(('Content-Length', str(len(ret))))
         start_response(status, headers)
         return [ret]
@@ -28,7 +29,7 @@ def status_code_server(environ, start_response):
     m = re.match(r'^/([0-9]{3})$', path)
     if m:
         status = m.group(1) + ' WAT'
-        ret = 'following xxx path for {}\n'.format(path).encode('utf8')
+        ret = f'request was for {repr(path)}, so returning status {repr(status)}\n'.encode('utf8')
         headers.append(('Content-Length', str(len(ret))))
         start_response(status, headers)
         return [ret]
@@ -148,7 +149,7 @@ def magic_directory_server(environ, start_response):
             return b''
         else:
             data, enc = generate_directory_listing(path)
-            start_response('200 OK', [('Content-type', 'text/html; charset=%s' % enc)
+            start_response('200 OK', [('Content-type', 'text/html; charset=%s' % enc),
                                       ('Content-Length', str(len(data)))])
             return data
     ctype = guess_content_type(path)

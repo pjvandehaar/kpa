@@ -5,28 +5,40 @@ import pathlib, sys, argparse, os
 from typing import Optional
 
 
-def main():
-    from .func_utils import assign
+def main() -> None:
+    command = sys.argv[1] if sys.argv[1:] else ''
 
-    if sys.argv[1:2] == ['lint']:
+    if command in ['lint', 'l']:
         from .dev_utils import lint_cli
         lint_cli(sys.argv[2:])
 
-    elif sys.argv[1:] == ['status-code-server']:
+    elif command in ['lw', 'lint-watch', 'wl', 'watch-lint']:
+        from .dev_utils import lint_cli
+        lint_cli(sys.argv[2:] + ['--watch'])
+
+    elif command in ['watch', 'w']:
+        from .watcher import run
+        run(sys.argv[2:])
+
+    elif command in ["pip-find-updates", 'pfu']:
+        from .pip_utils import run
+        run(sys.argv[2:])
+
+    elif command == 'serve-status-code':
         from .http_server import serve, status_code_server
         serve(status_code_server)
 
-    elif sys.argv[1:] == ['dir-server']:
-        from .http_server import serve, magic_dir_server
-        serve(magic_dir_server)
+    elif command == 'serve-dir':
+        from .http_server import serve, magic_directory_server
+        serve(magic_directory_server)
 
-    elif sys.argv[1:] and sys.argv[1] == 'redirect-server':
+    elif command == 'serve-redirect':
         from .http_server import serve, make_redirect_server
         port = int(sys.argv[2])
         target_base_url = sys.argv[3]
         serve(make_redirect_server(target_base_url), port=port)
 
-    elif sys.argv[1:] == ['termcolor']:
+    elif command in ['term-color', 'termcolor']:
         from .terminal_utils import termcolor
         def r(num): return '#' if num is None else str(num%10)
         print('    # ' + ' '.join('{bg:2}'.format(bg=bg) for bg in range(50)))
@@ -34,26 +46,8 @@ def main():
             print('{fg:<2} '.format(fg=(fg if fg is not None else '#')) +
                   ' '.join(termcolor(r(fg)+r(bg), fg, bg) for bg in [None]+list(range(50))))
 
-    elif sys.argv[1:] and sys.argv[1] == "pip-find-updates":
-        from .pip_utils import check_file
-        @assign
-        def filepath() -> Optional[str]:
-            if sys.argv[2:]:
-                p = pathlib.Path(sys.argv[2])
-                return p.as_posix() if p.exists() else None
-            p = pathlib.Path().absolute()
-            for directory in [p] + list(p.parents):
-                for filename in ['setup.py', 'requirements.txt']:
-                    p = directory / filename
-                    if p.exists(): return p.as_posix()
-            return None
-        if not filepath: print('argv[2] not found and failed to find setup.py or requirements.txt in parent dirs')
-        else:
-            print('Looking at {filepath}'.format(filepath=filepath))
-            check_file(filepath)
-
     else:
         if sys.argv[1:]: print('unknown command:', sys.argv[1:])
-        from kpa.version import version
+        from .version import version
         print(f'kpa version {version}\n')
         print('available commands:\n  kpa termcolor\n  kpa status-code-server\n  kpa redirect-server\n  kpa pip-find-updates')

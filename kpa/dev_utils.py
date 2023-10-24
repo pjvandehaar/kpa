@@ -42,6 +42,7 @@ def find_exe_options(name:str, filepath:str = '') -> Iterator[str]:
 
 
 def lint_cli(argv:List[str]) -> None:
+    # TODO: If no files are passed, use all *.py here and in children, but not in `.*/`
     parser = argparse.ArgumentParser(prog='kpa lint')
     parser.add_argument('files', nargs='+')
     #parser.add_argument('--no-mypy-cache', action='store_true', help="Don't make .mypy_cache/")  # Conflicts with `--install-types`.  Consider using `--cache-dir=/tmp/{slugify(abspaths(args.files))}`.
@@ -49,7 +50,17 @@ def lint_cli(argv:List[str]) -> None:
     parser.add_argument('--extra-flake8-ignores', help="Extra errors/warnings for flake8 to ignore")
     parser.add_argument('--venv-bin-dir', help="A path to venv/bin that has flake8 or mypy")
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--watch', action='store_true', help='Watch files, and re-lint when files are updated')
     args = parser.parse_args(argv)
+
+    if args.watch:
+        from .watcher import yield_when_files_update
+        argv2 = [a for a in argv if a!='--watch']
+        assert len(argv2)+1 == len(argv), (argv, argv2)
+        for _ in yield_when_files_update(args.files, and_also_immediately=True):
+            print('=====> linting...')
+            lint_cli(argv2)
+            print('.\n')
 
     if args.run_rarely:
         seconds_since_last_change = time.time() - max(Path(path).stat().st_mtime for path in args.files)
