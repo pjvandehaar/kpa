@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 # to install locally: `pip install -e .`
-# to install latest from pypi: `pip3 install --upgrade --upgrade-strategy eager --no-cache-dir kpa`
+# to install latest from pypi: `pip3 install -U --upgrade-strategy=eager --no-cache-dir kpa`
 # to publish: `./setup.py publish`
 # to update deps: `kpa pip-find-updates`
 
 from setuptools import setup
-import importlib
-import sys
+import importlib.util, types, sys
 
 
-def load_module_by_path(module_name, filepath):
-    module = importlib.util.module_from_spec(importlib.util.spec_from_file_location(module_name, filepath))
-    module.__spec__.loader.exec_module(module)
+def load_module_by_path(module_name:str, filepath:str) -> types.ModuleType:
+    spec = importlib.util.spec_from_file_location(module_name, filepath); assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec); assert module
+    spec.loader.exec_module(module)
     return module
 version = load_module_by_path('kpa.version', 'kpa/version.py').version
 
@@ -42,7 +42,5 @@ setup(
     include_package_data=True,
     zip_safe=False,
     python_requires=">=3.6",
-    install_requires=[
-        'boltons>=23.0',
-    ],
+    install_requires=[],
 )

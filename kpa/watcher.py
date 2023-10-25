@@ -26,7 +26,7 @@ def run(args:List[str]) -> None:
         if os.path.exists(filepaths[0]) and not filepaths[0].startswith(('/','./')):
             cmd[0] = './'+cmd[0]
 
-    print(f'Watching {repr(filepaths)} and running {cmd}')
+    print(f'Watching {repr(filepaths)} and running {cmd}\n')
     for _ in yield_when_files_update(filepaths, and_also_immediately=True):
         print('======>', cmd)
         subp.run(cmd)

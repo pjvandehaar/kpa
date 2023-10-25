@@ -17,12 +17,16 @@ def main() -> None:
         lint_cli(sys.argv[2:] + ['--watch'])
 
     elif command in ['watch', 'w']:
-        from .watcher import run
-        run(sys.argv[2:])
+        from .watcher import run as watcher_run
+        watcher_run(sys.argv[2:])
 
     elif command in ["pip-find-updates", 'pfu']:
-        from .pip_utils import run
-        run(sys.argv[2:])
+        from .pip_utils import run as pfu_run
+        pfu_run(sys.argv[2:])
+
+    elif command == 'skel':
+        from .skel import run as skel_run
+        skel_run(sys.argv[2:])
 
     elif command == 'serve-status-code':
         from .http_server import serve, status_code_server

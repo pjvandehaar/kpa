@@ -47,19 +47,20 @@ def _lint_cli(args:argparse.Namespace) -> None:
         yield f'venv/bin/{name}'
         for file in args.files: yield f'{os.path.dirname(os.path.abspath(file))}/venv/bin/{name}'
     def print_and_run(cmd:List[str]) -> bool:  # Returns whether it succeeded
-        if args.verbose: print(cmd)
+        if args.verbose: print('=>', cmd)
         p = subp.run(cmd)
         if p.returncode != 0: print(f"\n{cmd[0]} failed"); return False
+        return True
 
     flake8_ignore = 'B007,E116,E124,E126,E127,E128,E129,E201,E202,E203,E221,E222,E225,E226,E227,E228,E231,E241,E251,E261,E265,E266,E301,E302,E303,E305,E306,E401,E402,E501,E701,E702,E704,F401,F811,W292,W293,W391,W504'
     if args.extra_flake8_ignores: flake8_ignore += ',' + args.extra_flake8_ignores
     try: flake8_exe = find_exe('flake8')
-    except ExecutableNotFound: pass
+    except ExecutableNotFound: print("flake8 not found")
     else:
         if not print_and_run([flake8_exe, '--show-source', f'--ignore={flake8_ignore}', *args.files]): return
 
     try: mypy_exe = find_exe('mypy')
-    except ExecutableNotFound: pass
+    except ExecutableNotFound: print("mypy not found")
     else: print_and_run([mypy_exe, '--pretty', '--ignore-missing-imports', '--non-interactive', '--install-types', *args.files])
 
 
@@ -104,6 +105,7 @@ def get_all_py_files(directory_:Optional[str] = None) -> Iterator[str]:
         if '#' in filepath.name: continue
         rel_path = filepath.relative_to(directory)
         if any(str(name).startswith('.') and str(name)!='.' for name in rel_path.parents): continue
+        if 'build/lib/' in str(rel_path): continue
         yield str(filepath)
 
 
