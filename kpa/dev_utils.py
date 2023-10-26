@@ -1,4 +1,4 @@
-import time, random, sys, argparse, os, subprocess as subp
+import time, random, sys, argparse, os, subprocess as subp, re
 from pathlib import Path
 from functools import wraps
 from typing import Optional,Iterator,List
@@ -105,7 +105,8 @@ def get_all_py_files(directory_:Optional[str] = None) -> Iterator[str]:
         if '#' in filepath.name: continue
         rel_path = filepath.relative_to(directory)
         if any(str(name).startswith('.') and str(name)!='.' for name in rel_path.parents): continue
-        if 'build/lib/' in str(rel_path): continue
+        if re.search(r'(^|/)build/lib/', str(rel_path)): continue
+        if re.search(r'(^|/)venv/', str(rel_path)): continue
         yield str(filepath)
 
 
