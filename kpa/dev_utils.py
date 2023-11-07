@@ -52,7 +52,7 @@ def _lint_cli(args:argparse.Namespace) -> None:
         if p.returncode != 0: print(f"\n{cmd[0]} failed"); return False
         return True
 
-    flake8_ignore = 'B007,E116,E124,E126,E127,E128,E129,E201,E202,E203,E221,E222,E225,E226,E227,E228,E231,E241,E251,E261,E265,E266,E301,E302,E303,E305,E306,E401,E402,E501,E701,E702,E704,F401,F811,W292,W293,W391,W504'
+    flake8_ignore = 'B007,E116,E124,E126,E127,E128,E129,E201,E202,E203,E221,E222,E225,E226,E227,E228,E231,E241,E251,E252,E261,E265,E266,E301,E302,E303,E305,E306,E401,E402,E501,E701,E702,E704,F401,F811,W292,W293,W391,W504'
     if args.extra_flake8_ignores: flake8_ignore += ',' + args.extra_flake8_ignores
     try: flake8_exe = find_exe('flake8')
     except ExecutableNotFound: print("flake8 not found")
