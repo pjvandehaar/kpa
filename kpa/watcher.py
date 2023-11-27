@@ -3,7 +3,7 @@
 ##  - watchexec: needs `cargo` to install
 
 import time, os, sys, subprocess as subp
-from typing import List,Dict,Iterator
+from typing import List,Dict,Iterator,Any
 
 try: import watchfiles
 except ImportError: have_watchfiles = False
@@ -27,27 +27,29 @@ def run(args:List[str]) -> None:
             cmd[0] = './'+cmd[0]
 
     print(f'Watching {repr(filepaths)} and running {cmd}\n')
-    for _ in yield_when_files_update(filepaths, and_also_immediately=True):
+    for changeset in yield_when_files_update(filepaths, and_also_immediately=True):
+        if changeset is not None: print()
         print('======>', cmd)
         subp.run(cmd)
-        print('.\n')
+        print('.')
 
 
 
-def yield_when_files_update(filepaths:List[str], and_also_immediately:bool = False) -> Iterator[None]:
+def yield_when_files_update(filepaths:List[str], and_also_immediately:bool = False) -> Iterator[Any]:
     assert isinstance(filepaths, list)
-    if and_also_immediately: yield
+    if and_also_immediately: yield None
     if have_watchfiles:
         for changeset in watchfiles.watch(*filepaths, raise_interrupt=False):
-            yield
+            yield changeset or {}
     else:
         mtimes = get_mtimes(filepaths)
         while True:
             time.sleep(0.5)
             new_mtimes = get_mtimes(filepaths)
             if new_mtimes != mtimes:
-                print("Files were updated:", [p for p in filepaths if mtimes[p]!=new_mtimes[p]])
-                yield
+                updated_paths = [p for p in filepaths if mtimes[p]!=new_mtimes[p]]
+                print("Files were updated:", updated_paths)
+                yield updated_paths
             mtimes = new_mtimes
 
 def get_mtimes(filepaths:List[str]) -> Dict[str,float]: return {p:get_mtime(p) for p in filepaths}

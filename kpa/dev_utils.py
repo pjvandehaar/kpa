@@ -22,11 +22,12 @@ def _lint_cli(args:argparse.Namespace) -> None:
     if args.watch:
         from .watcher import yield_when_files_update
         args.watch = False
-        for _ in yield_when_files_update(args.files, and_also_immediately=True):
+        for changeset in yield_when_files_update(args.files, and_also_immediately=True):
+            if changeset is not None: print('\n'*5)
             if len(args.files)<5: print(f'=====> linting {args.files}...')
             else: print(f'=====> linting {len(args.files)} files...')
             _lint_cli(args)
-            print('.\n')
+            print('.')
         exit(0)
 
     if args.run_rarely:
