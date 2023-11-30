@@ -48,7 +48,7 @@ def yield_when_files_update(filepaths:List[str], and_also_immediately:bool = Fal
             new_mtimes = get_mtimes(filepaths)
             if new_mtimes != mtimes:
                 updated_paths = [p for p in filepaths if mtimes[p]!=new_mtimes[p]]
-                print("Files were updated:", updated_paths)
+                #print("Files were updated:", updated_paths)
                 yield updated_paths
             mtimes = new_mtimes
 
