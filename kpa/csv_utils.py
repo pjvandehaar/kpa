@@ -38,6 +38,17 @@ def print_table(data:Iterable[dict], gutter:str='  ') -> None:
         print(gutter.join(f'{row.get(colname,""):{colwidth}}' for colname,colwidth in colwidths.items()))
 
 
+def read_tsv(filename:str) -> Iterable[Dict[str,str]]:
+    with open(filename) as f:
+        header = next(f).rstrip('\n').split('\t')
+        assert header, header
+        header[0] = header[0].lstrip('#')
+        for line in f:
+            row = line.rstrip('\n').split('\t')
+            assert len(header) == len(row), (len(header), len(row), header, row)
+            yield dict(zip(header, row))
+
+
 
 if __name__ == '__main__':
     print(as_tsv([
