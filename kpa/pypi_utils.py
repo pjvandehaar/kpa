@@ -1,11 +1,16 @@
 from pathlib import Path
 import urllib.request
-import subprocess, json, sys
+import subprocess, json, sys, types, importlib.util
+from typing import Union
 
 
-def upload_package(package_name:str, current_version:str) -> None:
-    # TODO: look into `class UploadCommand(setuptools.Command)` from <https://github.com/kennethreitz/setup.py/blob/master/setup.py#L49>
+def upload_package(package_name:str, current_version:str='') -> None:
     package_name = package_name.lower()
+
+    version_path = Path(f'{package_name}/version.py')
+    if not current_version:
+        current_version = load_module_by_path('version', version_path).version
+    assert current_version, current_version
 
     # Make sure there's no unstaged changes
     git_workdir_returncode = subprocess.run('git diff-files --quiet'.split()).returncode
@@ -22,7 +27,7 @@ def upload_package(package_name:str, current_version:str) -> None:
     if latest_version == current_version:
         new_version = next_version(current_version)
         print(f'=> autoincrementing version {current_version} -> {new_version}')
-        Path(f'{package_name}/version.py').write_text(f"version = '{new_version}'\n")
+        version_path.write_text(f"version = '{new_version}'\n")
         current_version = new_version
         subprocess.run(['git','stage',f'{package_name}/version.py'], check=True)
 
@@ -54,8 +59,17 @@ def upload_package(package_name:str, current_version:str) -> None:
     if git_index_returncode == 1:
         print('=> Now do `git push`.')
 
+
 def next_version(version:str) -> str:
-    new_version_parts = version.split('.')
-    new_version_parts[2] = str(1+int(new_version_parts[2]))
-    return '.'.join(new_version_parts)
-assert next_version('1.1.5') == '1.1.6'
+    version_parts = version.split('.')
+    version_parts[-1] = str(1+int(version_parts[-1]))
+    return '.'.join(version_parts)
+assert next_version('1.1.9') == '1.1.10'
+assert next_version('0.0') == '0.1'
+
+
+def load_module_by_path(module_name:str, filepath:Union[str,Path]) -> types.ModuleType:
+    spec = importlib.util.spec_from_file_location(module_name, str(filepath)); assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec); assert module
+    spec.loader.exec_module(module)
+    return module

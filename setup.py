@@ -2,7 +2,6 @@
 # to install locally: `pip install -e .`
 # to install latest from pypi: `pip3 install -U --upgrade-strategy=eager --no-cache-dir kpa`
 # to publish: `./setup.py publish`
-# to update deps: `kpa pip-find-updates`
 
 from setuptools import setup
 import importlib.util, types, sys
@@ -18,14 +17,14 @@ version = load_module_by_path('kpa.version', 'kpa/version.py').version
 
 if sys.argv[-1] in ['publish', 'pub']:
     pypi_utils = load_module_by_path('kpa.pypi_utils', 'kpa/pypi_utils.py')
-    pypi_utils.upload_package(package_name='Kpa', current_version=version)
+    pypi_utils.upload_package(package_name='Kpa')
     sys.exit(0)
 
 
 setup(
     name='Kpa',
     version=version,
-    description="<forthcoming>",
+    description="Simple python utils",
     author="Peter VandeHaar",
     author_email="pjvandehaar@gmail.com",
     url="https://github.com/pjvandehaar/kpa",
