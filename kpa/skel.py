@@ -24,7 +24,7 @@ set -euo pipefail
 readlinkf() { perl -MCwd -le 'print Cwd::abs_path shift' "$1"; }
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 exists() { type -t "$1" >/dev/null; }
-print_and_run() { echo "=> $@"; "$@"; echo; }
+print_and_run() { echo "=> $@" >&2; "$@"; echo >&2; }
 cd "$SCRIPTDIR/.."
 
 if [[ ${1:-} == install ]]; then
