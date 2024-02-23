@@ -10,7 +10,7 @@ def main() -> None:
 
     if command in ['lint', 'l']:
         from .dev_utils import lint_cli
-        lint_cli(sys.argv[2:])
+        exit(lint_cli(sys.argv[2:]))
 
     elif command in ['lw', 'lint-watch', 'wl', 'watch-lint']:
         from .dev_utils import lint_cli
