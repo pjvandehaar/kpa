@@ -7,16 +7,17 @@ from setuptools import setup
 import importlib.util, types, sys
 
 
-def load_module_by_path(module_name:str, filepath:str) -> types.ModuleType:
+def load_module_from_path(filepath:str) -> types.ModuleType:
+    module_name = filepath.split('/')[-1].removesuffix('.py')
     spec = importlib.util.spec_from_file_location(module_name, filepath); assert spec and spec.loader
     module = importlib.util.module_from_spec(spec); assert module
     spec.loader.exec_module(module)
     return module
-version = load_module_by_path('kpa.version', 'kpa/version.py').version
+version = load_module_from_path('kpa/version.py').version
 
 
 if sys.argv[-1] in ['publish', 'pub']:
-    pypi_utils = load_module_by_path('kpa.pypi_utils', 'kpa/pypi_utils.py')
+    pypi_utils = load_module_from_path('kpa/pypi_utils.py')
     pypi_utils.upload_package(package_name='Kpa')
     sys.exit(0)
 

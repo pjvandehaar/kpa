@@ -9,7 +9,7 @@ def upload_package(package_name:str, current_version:str='') -> None:
 
     version_path = Path(f'{package_name}/version.py')
     if not current_version:
-        current_version = load_module_by_path('version', version_path).version
+        current_version = load_module_from_path(version_path).version
     assert current_version, current_version
 
     # Make sure there's no unstaged changes
@@ -68,8 +68,9 @@ assert next_version('1.1.9') == '1.1.10'
 assert next_version('0.0') == '0.1'
 
 
-def load_module_by_path(module_name:str, filepath:Union[str,Path]) -> types.ModuleType:
-    spec = importlib.util.spec_from_file_location(module_name, str(filepath)); assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec); assert module
+def load_module_from_path(filepath:Union[str,Path], module_name:str='') -> types.ModuleType:
+    if not module_name: module_name = Path(filepath).name.removesuffix('.py')
+    spec = importlib.util.spec_from_file_location(module_name, str(filepath)); assert spec and spec.loader, filepath
+    module = importlib.util.module_from_spec(spec); assert module, filepath
     spec.loader.exec_module(module)
     return module
