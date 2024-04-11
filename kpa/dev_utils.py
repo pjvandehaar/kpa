@@ -11,6 +11,7 @@ def lint_cli(argv:List[str]) -> int:  # returns a ReturnCode
     parser.add_argument('files', nargs='*', help='If no files are passed, this uses **/*.py')
     #parser.add_argument('--no-mypy-cache', action='store_true', help="Don't make .mypy_cache/")  # Conflicts with `--install-types`.  Consider using `--cache-dir=/tmp/{slugify(abspaths(args.files))}`.
     parser.add_argument('--run-rarely', action='store_true', help="Only when file is modified in last 30 seconds, or otherwise 1%% of the time")
+    parser.add_argument('--flake8-only', action='store_true', help="Run flake8 and not mypy")
     parser.add_argument('--extra-flake8-ignores', help="Extra errors/warnings for flake8 to ignore")
     parser.add_argument('--venv-bin-dir', help="A path to venv/bin that has flake8 or mypy")
     parser.add_argument('--verbose', action='store_true')
@@ -58,7 +59,7 @@ def _lint_cli(args:argparse.Namespace) -> int:
     try: flake8_exe = find_exe('flake8')
     except ExecutableNotFound: print("flake8 not found"); return 11
     retcode = print_and_run([flake8_exe, '--show-source', f'--ignore={flake8_ignore}', *args.files])
-    if retcode != 0: return retcode
+    if retcode != 0 or args.flake8_only: return retcode
 
     try: mypy_exe = find_exe('mypy')
     except ExecutableNotFound: print("mypy not found"); return 12
