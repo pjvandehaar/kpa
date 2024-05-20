@@ -6,12 +6,18 @@ from typing import Optional,Iterator,List
 class ExecutableNotFound(Exception): pass
 
 
+# TODO: Instead of listing what to ignore, list what to include
+flake8_ignore_strict  = 'B007,E116,E124,E126,E127,E128,E129,E201,E202,E203,E221,E222,E225,E226,E227,E228,E231,E241,E251,E252,E261,E265,E266,E301,E302,E303,E305,E306,E401,E402,E501,E701,E702,E704,F401,F811,W292,W293,W391,W504'
+flake8_ignore_default = flake8_ignore_strict + ',E115,E122,E242,E262,E271,E274,E713,E722,E741,W191,W291'
+
+
 def lint_cli(argv:List[str]) -> int:  # returns a ReturnCode
     parser = argparse.ArgumentParser(prog='kpa lint')
     parser.add_argument('files', nargs='*', help='If no files are passed, this uses **/*.py')
     #parser.add_argument('--no-mypy-cache', action='store_true', help="Don't make .mypy_cache/")  # Conflicts with `--install-types`.  Consider using `--cache-dir=/tmp/{slugify(abspaths(args.files))}`.
     parser.add_argument('--run-rarely', action='store_true', help="Only when file is modified in last 30 seconds, or otherwise 1%% of the time")
     parser.add_argument('--flake8-only', action='store_true', help="Run flake8 and not mypy")
+    parser.add_argument('--flake8-strict', action='store_true', help="Run non-essential checks in flake8")
     parser.add_argument('--extra-flake8-ignores', help="Extra errors/warnings for flake8 to ignore")
     parser.add_argument('--venv-bin-dir', help="A path to venv/bin that has flake8 or mypy")
     parser.add_argument('--verbose', action='store_true')
@@ -54,8 +60,7 @@ def _lint_cli(args:argparse.Namespace) -> int:
         if p.returncode != 0: print(f"\n{cmd[0]} failed")
         return p.returncode
 
-    flake8_ignore = 'B007,E116,E124,E126,E127,E128,E129,E201,E202,E203,E221,E222,E225,E226,E227,E228,E231,E241,E251,E252,E261,E265,E266,E301,E302,E303,E305,E306,E401,E402,E501,E701,E702,E704,F401,F811,W292,W293,W391,W504'
-    if args.extra_flake8_ignores: flake8_ignore += ',' + args.extra_flake8_ignores
+    flake8_ignore = (flake8_ignore_strict if args.flake8_strict else flake8_ignore_default) + (f',{args.extra_flake8_ignores}' if args.extra_flake8_ignores else '')
     try: flake8_exe = find_exe('flake8')
     except ExecutableNotFound: print("flake8 not found"); return 11
     retcode = print_and_run([flake8_exe, '--show-source', f'--ignore={flake8_ignore}', *args.files])
@@ -78,7 +83,7 @@ run = lint
 def lint_flake8(filepath:str = '') -> None:
     try: flake8_exe = find_exe('flake8', filepath=filepath)
     except ExecutableNotFound: return None
-    p = subp.run([flake8_exe, '--show-source', '--ignore=E501,E302,E251,E701,E226,E305,E225,E261,E231,E301,E306,E402,E704,E265,E201,E202,E303,E124,E241,E127,E266,E221,E126,E129,F811,E222,E401,E702,E203,E116,E228,W504,W293,B007,W391,F401,W292,E227,E128', filepath])
+    p = subp.run([flake8_exe, '--show-source', f'--ignore={flake8_ignore_default}', filepath])
     if p.returncode != 0: sys.exit(1)
 
 def lint_mypy(filepath:str = '', make_cache:bool = True) -> None:
