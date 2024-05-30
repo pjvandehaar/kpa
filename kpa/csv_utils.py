@@ -22,7 +22,7 @@ def write_tsv_to_fileobj(data:Iterable[dict], writer:TextIO, sep='\t') -> None:
             if colname not in colnames: colnames.append(colname)
     for idx,row in enumerate(data):
         for val in row.values():
-            if sep in val:
+            if sep in str(val):
                 raise Exception(f"Cannot write tsv because sep={repr(sep)} is in value {repr(val)} on line #{idx}")
     writer.write(sep.join(colnames) + '\n')
     for row in data: writer.write(sep.join(str(row.get(colname,'')) for colname in colnames) + '\n')
