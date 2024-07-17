@@ -25,14 +25,20 @@ def run(args:List[str]) -> None:
         check_file(filepath)
 
 
-def check_file(filepath:str) -> None:
+def check_file(filepath:str, verbose:bool=False) -> None:
     print('{:<2} {:20} {:11} {:11} {:11}'.format('', 'PACKAGE', 'SPEC', 'LATEST', 'INSTALLED'))
     with open(filepath) as f:
         for line in f:
-            m = re.match(r'''^\s*'?([-a-zA-Z]+)(\[[a-zA-Z]+\])?([~<>=]{2}[0-9a-zA-Z\.]+)?'?,?\s*$''', line)
-            if m:
-                pkg, opt, version = m.group(1), m.group(2), m.group(3)
-                check_pkg(pkg, opt, version, line)
+            check_line(line, verbose=verbose)
+
+def check_line(line:str, verbose:bool=False) -> None:
+    m = re.match(r'''^\s*'?([-a-zA-Z_]+)(\[[a-zA-Z0-9]+\])?([~<>=]{2}[0-9a-zA-Z\.]+)?'?,?\s*(?:#.*)?''', line)
+    if m:
+        pkg, opt, version = m.group(1), m.group(2), m.group(3)
+        if verbose: print(f'pkg={repr(pkg)}  opt={repr(opt)}  version={repr(version)}')
+        check_pkg(pkg, opt, version, line)
+    elif verbose and line.strip() and not line.startswith('#'):
+        print(f'[line didnt match: {repr(line)}]')
 
 def check_pkg(pkg:str, opt:str, version:str, line:Optional[str] = None) -> None:
     '''
