@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import List,Optional,Dict
 
 
+OUTPUT_LINE_TEMPLATE = '{:<2} {:22} {:14} {:14} {:14}'
+
 def run(args:List[str]) -> None:
     @assign
     def filepath() -> Optional[str]:
@@ -26,19 +28,21 @@ def run(args:List[str]) -> None:
 
 
 def check_file(filepath:str, verbose:bool=False) -> None:
-    print('{:<2} {:20} {:11} {:11} {:11}'.format('', 'PACKAGE', 'SPEC', 'LATEST', 'INSTALLED'))
+    print(OUTPUT_LINE_TEMPLATE.format('', 'PACKAGE', 'SPEC', 'LATEST', 'INSTALLED'))
     with open(filepath) as f:
         for line in f:
             check_line(line, verbose=verbose)
 
 def check_line(line:str, verbose:bool=False) -> None:
-    m = re.match(r'''^\s*'?([-a-zA-Z_]+)(\[[a-zA-Z0-9]+\])?([~<>=]{2}[0-9a-zA-Z\.]+)?'?,?\s*(?:#.*)?''', line)
+    m = re.match(r'''^\s*'?([-a-zA-Z0-9_\.]+)(\[[a-zA-Z0-9]+\])?([~<>=]{2}[0-9a-zA-Z\.]+)?'?,?\s*(?:#.*)?$''', line)
     if m:
         pkg, opt, version = m.group(1), m.group(2), m.group(3)
         if verbose: print(f'[regex parsed: pkg={repr(pkg)}  opt={repr(opt)}  version={repr(version)}]')
         check_pkg(pkg, opt, version, line)
     elif verbose and line.strip() and not line.strip().startswith('#'):
         print(f'[line didnt match: {repr(line)}]')
+    elif line.strip() and not line.strip().startswith('#') and set(line).intersection('>=<'):
+        print(f'[WARNING: line didnt match: {repr(line)}]')
 
 def check_pkg(pkg:str, opt:str, version:str, line:Optional[str] = None) -> None:
     '''
@@ -55,9 +59,9 @@ def check_pkg(pkg:str, opt:str, version:str, line:Optional[str] = None) -> None:
         v = version.lstrip('~=>')
         installed_version = get_installed_pkg_versions2().get(pkg.lower(),'-')
         update_str = (' ' if latest_version.startswith(v) else '>') + (' ' if installed_version.startswith(v) else '>')
-        print('{:<2} {:20} {:11} {:11} {:11}'.format(update_str, pkg+opt, version, latest_version, installed_version))
+        print(OUTPUT_LINE_TEMPLATE.format(update_str, pkg+opt, version, latest_version, installed_version))
     except Exception:
-        raise Exception([pkg, opt, version, line])
+        raise Exception({'pkg':pkg, 'opt':opt, 'version':version, 'line':line})
 
 @functools.cache
 def get_installed_pkg_versions() -> Dict[str,str]:
