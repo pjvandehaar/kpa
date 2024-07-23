@@ -9,11 +9,18 @@ from typing import List,Optional,Dict
 OUTPUT_LINE_TEMPLATE = '{:<2} {:22} {:14} {:14} {:14}'
 
 def run(args:List[str]) -> None:
+    if {'-h','--help'}.intersection(args):
+        print('Usage:')
+        print('  kpa pip-find-updates        # looks for setup.py or requirements.txt, including in parent dirs')
+        print('  kpa pip-find-updates $filename')
+        print('Options: --verbose')
+        exit(1)
     @assign
     def filepath() -> Optional[str]:
-        if args:
-            p = Path(args[0])
-            if not p.exists(): print("args[0] doesn't exist!"); exit(1)
+        file_args = [a for a in args if not a.startswith('-')]
+        if file_args:
+            p = Path(file_args[0])
+            if not p.exists(): print(f"{repr(file_args[0])} doesn't exist!"); exit(1)
             return p.as_posix()
         p = Path().absolute()
         for directory in [p] + list(p.parents):

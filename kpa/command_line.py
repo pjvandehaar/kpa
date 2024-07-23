@@ -5,6 +5,20 @@ import pathlib, sys, argparse, os
 from typing import Optional
 
 
+help_template = '''\
+kpa version {version}
+
+available commands:
+  kpa lint
+  kpa lint-watch
+  kpa watch
+  kpa skel
+  kpa pip-find-updates
+  kpa termcolor
+  kpa serve-status-code (status-code-server)
+  kpa redirect-server
+'''
+
 def main() -> None:
     command = sys.argv[1] if sys.argv[1:] else ''
 
@@ -28,13 +42,9 @@ def main() -> None:
         from .skel import run as skel_run
         skel_run(sys.argv[2:])
 
-    elif command == 'serve-status-code':
+    elif command in ['serve-status-code', 'status-code-server']:
         from .http_server import serve, status_code_server
         serve(status_code_server)
-
-    elif command == 'serve-dir':
-        from .http_server import serve, magic_directory_server
-        serve(magic_directory_server)
 
     elif command == 'serve-redirect':
         from .http_server import serve, make_redirect_server
@@ -51,7 +61,6 @@ def main() -> None:
                   ' '.join(termcolor(r(fg)+r(bg), fg, bg) for bg in [None]+list(range(50))))
 
     else:
-        if sys.argv[1:]: print('unknown command:', sys.argv[1:])
+        if sys.argv[1:] and sys.argv[1] not in ['-h','--help']: print('unknown command:', sys.argv[1:], '\n')
         from .version import version
-        print(f'kpa version {version}\n')
-        print('available commands:\n  kpa termcolor\n  kpa status-code-server\n  kpa redirect-server\n  kpa pip-find-updates')
+        print(help_template.format(version=version))
