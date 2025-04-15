@@ -47,11 +47,13 @@ def run_llm_command(args:list[str]) -> None:
     else: raise Exception(f'unknown args: {args}')
     model_name = get_full_model_name(model_name)
     if Path(system_prompt).expanduser().exists():
-        system_prompt = Path(system_prompt).read_text()
-        print('=> reading system prompt from file:', system_prompt, f' ({len(system_prompt):,} chars)')
+        system_prompt_text = Path(system_prompt).read_text()
+        print('=> reading system prompt from file:', system_prompt, f' ({len(system_prompt_text):,} chars)')
+        system_prompt = system_prompt_text
     if Path(user_prompt).expanduser().exists():
-        user_prompt = Path(user_prompt).read_text()
-        print('=> reading user prompt from file:', user_prompt, f' ({len(user_prompt):,} chars)')
+        user_prompt_text = Path(user_prompt).read_text()
+        print('=> reading user prompt from file:', user_prompt, f' ({len(user_prompt_text):,} chars)')
+        user_prompt = user_prompt_text
     try: model_config = models_config[model_name]
     except KeyError: raise Exception(f'unknown model {model_name}, available models: {list(models_config.keys())}')
     output, resp_data = run_llm(model_name, system_prompt, user_prompt)
