@@ -17,10 +17,13 @@ available commands:
   kpa termcolor
   kpa serve-status-code (status-code-server)
   kpa redirect-server
+  kpa llm
 '''
 
 def main() -> None:
     command = sys.argv[1] if sys.argv[1:] else ''
+
+    ## TODO: Add lwr which watches, lints, and runs.
 
     if command in ['lint', 'l']:
         from .dev_utils import lint_cli
@@ -33,6 +36,10 @@ def main() -> None:
     elif command in ['watch', 'w']:
         from .watcher import run as watcher_run
         watcher_run(sys.argv[2:])
+
+    elif command == 'llm':
+        from .llm_utils import run_llm_command
+        run_llm_command(sys.argv[2:])
 
     elif command in ["pip-find-updates", 'pfu']:
         from .pip_utils import run as pfu_run
