@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import argparse
+import functools
 import datetime, json
 import os
 from typing import Any
@@ -17,47 +19,50 @@ class ApiOverloadedException(Exception):
 
 
 
-def run_llm_command(args:list[str]) -> None:
-    if args == ['--log']:
+def run_llm_command(argv:list[str]) -> None:
+
+    if not argv or {'-h', '--help'}.intersection(argv):
+        print("Usage:")
+        print("  kpa llm -m <model_name> <user_prompt>")
+        print("  kpa llm -m <model_name> <system_prompt> <user_prompt>")
+        print("  kpa llm --log")
+        print("\nList of models:")
+        for model_name in get_models_config().keys(): print(f"  {model_name}")
+        return
+
+    if argv[0] == '--log':  ## special case
         log_paths = sorted(request_logging_dir.glob('*.json'), key=lambda p: p.stat().st_mtime)
         print('All log files:')
         for log_path in log_paths: print(' -', log_path.name)
         print('\nLast log file content:')
         print(log_paths[-1].read_text())
         return
-    normal_args = [arg for arg in args if not arg.startswith('--')]
-    if not normal_args or {'-h', '--help'}.intersection(normal_args):
-        print(f"Usage: kpa llm <user_prompt>")
-        print(f"Usage: kpa llm <model_name> <user_prompt>")
-        print(f"Usage: kpa llm <model_name> <system_prompt> <user_prompt>")
-        print("Usage: kpa llm --last-log")
-        print("\nList of models:")
-        for model_name in get_models_config().keys(): print(f"  {model_name}")
-        return
-    print_logs = '--no-print-logs' not in args
-    args = [arg for arg in args if not arg.startswith('--')]
+    
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('-m', '--model', type=str, default=str(list(get_models_config().keys())[0]))
+    arg_parser.add_argument('--no-print-logs', action='store_false', dest='print_logs', default=True)
+    arg_parser.add_argument('prompts', nargs='+')
+    args = arg_parser.parse_args(argv)
 
-    models_config = get_models_config()
-    model_name = str(list(models_config.keys())[0])
-    system_prompt = ''
-    user_prompt = ''
-    if len(args) == 1: user_prompt = args[0]
-    elif len(args) == 2: model_name, user_prompt = args
-    elif len(args) == 3: model_name, system_prompt, user_prompt = args
-    else: raise Exception(f'unknown args: {args}')
-    model_name = get_full_model_name(model_name)
-    if Path(system_prompt).expanduser().exists():
+    assert len(args.prompts) <= 2, f'too many prompts: {args.prompts}'
+    if len(args.prompts) == 1:
+        user_prompt = args.prompts[0]
+        system_prompt = ''
+    else:
+        user_prompt = args.prompts[0]
+        system_prompt = args.prompts[1]
+
+    model_name = get_full_model_name(args.model)
+    if system_prompt and Path(system_prompt).expanduser().exists():
         system_prompt_text = Path(system_prompt).read_text()
         print('=> reading system prompt from file:', system_prompt, f' ({len(system_prompt_text):,} chars)')
         system_prompt = system_prompt_text
-    if Path(user_prompt).expanduser().exists():
+    if user_prompt and Path(user_prompt).expanduser().exists():
         user_prompt_text = Path(user_prompt).read_text()
         print('=> reading user prompt from file:', user_prompt, f' ({len(user_prompt_text):,} chars)')
         user_prompt = user_prompt_text
-    try: model_config = models_config[model_name]
-    except KeyError: raise Exception(f'unknown model {model_name}, available models: {list(models_config.keys())}')
     output, resp_data = run_llm(model_name, system_prompt, user_prompt)
-    if print_logs: print(Path(resp_data['log_path']).read_text()); print()
+    if args.print_logs: print(Path(resp_data['log_path']).read_text()); print()
     else: print(f"=> logs: {resp_data['log_path']}")
     print(output)
 
@@ -72,39 +77,44 @@ def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:st
 
     model_config = get_models_config()[model_name]
 
-    if model_config['api_type'] == 'bedrock': raise NotImplementedError('bedrock not implemented')
-    elif model_config['api_type'] == 'ollama': pass  # TODO: Check that ollama server is running
-    elif model_config['api_type'] == 'openai': pass
+    if model_config['api_type'] == 'openai': pass
     elif model_config['api_type'] == 'claude': pass
+    elif model_config['api_type'] == 'bedrock': raise NotImplementedError('bedrock not implemented')
+    elif model_config['api_type'] == 'ollama': pass  # TODO: Check that ollama server is running
     elif model_config['api_type'] == '/chat/completions': pass
     else: raise Exception(f'unknown api type: {model_config["api_type"]}')
 
-    headers = {"Content-Type": "application/json"} | model_config.get('extra_headers', {})
+    headers = {"Content-Type": "application/json"} | replace_api_key_placeholders(model_config.get('extra_headers', {}))
+
+    data: dict[str, Any] = {
+        "model": model_name,
+        "stream": False,
+        "store": False,
+    }
     if model_config['api_type'] == 'openai':
-        data: dict[str, Any] = {
-            "model": model_name,
-            "input": [
-                {"role": "developer", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "store": False,
-        }
+        data['input'] = [
+            {"role": "developer", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
         if not data['input'][0]['content']: del data['input'][0]
-    else:
-        data: dict[str, Any] = {
-            "model": model_name,
-            "max_tokens": 8192,
-            "system": [{"type": "text", "text": system_prompt}],
-            "messages": [{"role": "user", "content": user_prompt}],
-            "stream": False,
-        }
+    elif model_config['api_type'] == '/chat/completions':
+        data['messages'] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        if not data['messages'][0]['content']: del data['messages'][0]
+    else:  # This covers the other api_types
+        data['system'] = [{"type": "text", "text": system_prompt}]
+        data['messages'] = [{"role": "user", "content": user_prompt}]
         if not data['system'][0]['text']: del data['system']
+
     log_path = str(request_logging_dir / f'{request_label}.json')
     write_log(log_path, {
         "request_url": model_config['url'],
         "request_headers": headers,
         "request_data": data,
     })
+    
     response = requests.post(model_config['url'], headers=headers, json=data)
     try:
         x = response.json()
@@ -128,11 +138,16 @@ def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:st
         "response_data": x,
     })
 
+    if 'x-ratelimit-reset-requests' in response.headers or 'x-ratelimit-reset-tokens' in response.headers:
+        ## I know this applies to openai, but might as well include for the others.
+        ## TODO: Parse "6m3s" etc.
+        raise ApiOverloadedException(x.get('error', {}).get('message','error'), wait_seconds=120)
+    if 'retry-after' in response.headers:
+        ## I know this applies to claude, but might as well include for the others.
+        wait_seconds = int(response.headers['retry-after'])
+        raise ApiOverloadedException(x.get('error', {}).get('message','error'), wait_seconds=wait_seconds+1)
 
     if model_config['api_type'] == 'openai':
-        if 'x-ratelimit-reset-requests' in response.headers or 'x-ratelimit-reset-tokens' in response.headers:
-            ## TODO: Parse "6m3s" etc.
-            raise ApiOverloadedException(x.get('error', {}).get('message','error'), wait_seconds=120)
         assert x.get('status') == 'completed' and x.get('error') is None, x
         actual_output = [msg for msg in x['output'] if msg['type'] == 'message']
         assert len(actual_output) == 1, dict(x=x, actual_output=actual_output)
@@ -152,11 +167,7 @@ def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:st
             del x['content']
             return (content0text, x | {'log_path': log_path})
         elif x['type'] == 'error':
-            if 'retry-after' in response.headers:
-                wait_seconds = int(response.headers['retry-after'])
-                raise ApiOverloadedException(x.get('error', {}).get('message','error'), wait_seconds=wait_seconds+1)
-            else:
-                raise Exception(f'unknown error: {x["error"]["message"]}')
+            raise Exception(f'unknown error from Claude: {x["error"]["message"]}')
         else:
             raise Exception(f'unknown response type: {x["type"]}')
     elif model_config['api_type'] == 'ollama':
@@ -174,15 +185,33 @@ def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:st
     else:
         raise Exception(f'unknown api type: {model_config["api_type"]}')
 
-def write_log(log_path:str, data:dict[str, Any]) -> None:
-    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(log_path, 'w') as f: json.dump(data, f, indent=2)
+
+
+
+### Read llm_keys.json:
+@functools.cache
+def get_llm_keys_config() -> dict[str,Any]:
+    ## TODO: Use a forgiving json loader that allows comments, trailing commas, etc
+    return json.loads(Path('~/PROJECTS/creds/llm_keys.json').expanduser().read_text())
 
 def get_models_config() -> dict[str,str]:
-    ## TODO: Use a forgiving json loader that allows comments, trailing commas, etc
-    return json.loads(Path('~/PROJECTS/creds/llm_keys.json').expanduser().read_text())['llms']
+    return get_llm_keys_config()['llms']
+
+def get_api_keys() -> dict[str,str]:
+    """Returns {"openai": "sk-...", "claude": "sk-...", ...}."""
+    config = get_llm_keys_config()
+    return {service: keys[0]['key'] for service, keys in config['api_keys'].items()}
+
+def replace_api_key_placeholders(headers:dict[str,str]) -> dict[str,str]:
+    api_keys = get_api_keys()
+    for header_name in list(headers.keys()):
+        if isinstance(headers[header_name], str) and '$api_key_' in headers[header_name]:
+            for service_name, api_key in api_keys.items():
+                headers[header_name] = headers[header_name].replace(f'$api_key_{service_name}', api_key)
+    return headers
 
 def get_full_model_name(model_name_prefix:str) -> str:
+    """Let user write `gem` to get `gemini-2.0-flash` (if that's the only model that starts with `gem`)"""
     models_config = get_models_config()
     if model_name_prefix in models_config: return model_name_prefix
     matching_models = [model_name for model_name in models_config.keys() if model_name.startswith(model_name_prefix)]
@@ -191,6 +220,10 @@ def get_full_model_name(model_name_prefix:str) -> str:
     else: raise Exception(f'Model name prefix matches multiple models: {model_name_prefix}, matching models: {matching_models}')
 
 
+### Utils:
 def get_datetime_str() -> str:
     return datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
+def write_log(log_path:str, data:dict[str, Any]) -> None:
+    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, 'w') as f: json.dump(data, f, indent=2)
