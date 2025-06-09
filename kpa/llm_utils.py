@@ -37,7 +37,7 @@ def run_llm_command(argv:list[str]) -> None:
         print('\nLast log file content:')
         print(log_paths[-1].read_text())
         return
-    
+
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-m', '--model', type=str, default=str(list(get_models_config().keys())[0]))
     arg_parser.add_argument('--no-print-logs', action='store_false', dest='print_logs', default=True)
@@ -194,7 +194,7 @@ def get_llm_keys_config() -> dict[str,Any]:
     ## TODO: Use a forgiving json loader that allows comments, trailing commas, etc
     return json.loads(Path('~/PROJECTS/creds/llm_keys.json').expanduser().read_text())
 
-def get_models_config() -> dict[str,str]:
+def get_models_config() -> dict[str,dict[str,Any]]:
     return get_llm_keys_config()['llms']
 
 def get_api_keys() -> dict[str,str]:

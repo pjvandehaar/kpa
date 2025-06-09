@@ -18,6 +18,7 @@ available commands:
   kpa serve-status-code (status-code-server)
   kpa redirect-server
   kpa llm
+  kpa speak
 '''
 
 def main() -> None:
@@ -40,6 +41,10 @@ def main() -> None:
     elif command == 'llm':
         from .llm_utils import run_llm_command
         run_llm_command(sys.argv[2:])
+
+    elif command == 'speak':
+        from .speak_utils import run_speak_command
+        run_speak_command(sys.argv[2:])
 
     elif command in ["pip-find-updates", 'pfu']:
         from .pip_utils import run as pfu_run
