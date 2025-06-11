@@ -34,8 +34,8 @@ Examples:
     parser.add_argument('output', nargs='?', default='-', help='Output audio file or "-" to play directly (default: -)')
     
     # Voice settings
-    parser.add_argument('--voice-id', default="21m00Tcm4TlvDq8ikWAM", 
-                       help='Voice ID to use (default: Rachel voice)')
+    parser.add_argument('--voice-id', default=DEFAULT_VOICE_ID,
+                       help='Voice ID to use (default: Jessica voice)')
     parser.add_argument('--model-id', default="eleven_multilingual_v2",
                        help='Model ID to use (default: eleven_multilingual_v2)')
     parser.add_argument('--stability', type=float, 
@@ -46,7 +46,7 @@ Examples:
                        help='Style exaggeration of the voice (0.0-1.0)')
     parser.add_argument('--use-speaker-boost', action='store_true',
                        help='Boost similarity to original speaker (increases latency)')
-    parser.add_argument('--speed', type=float,
+    parser.add_argument('--speed', type=float, default=1.0,
                        help='Speed of the voice (1.0 = normal, <1.0 = slower, >1.0 = faster)')
     parser.add_argument('--seed', type=int, default=DEFAULT_SEED,
                        help=f'Seed for deterministic generation (0-4294967295). Default: {DEFAULT_SEED}. Same seed with same parameters should produce similar results')
@@ -64,6 +64,8 @@ Examples:
     # Voice management
     parser.add_argument('--list-voices', action='store_true',
                        help='List all available voices in JSON format and exit')
+    parser.add_argument('--show-default-voice-settings', action='store_true',
+                       help='List the default settings for a voice_id and exit')
     
     # API settings
     parser.add_argument('--api-key', help='ElevenLabs API key (overrides ELEVENLABS_API_KEY env var)')
@@ -77,6 +79,12 @@ Examples:
     if cli_args.list_voices:
         voices = list_voices(cli_args.api_key)
         print(json.dumps(voices, indent=2))
+        return
+
+    # Handle --show-default-settings option
+    if cli_args.show_default_voice_settings:
+        voice_settings = get_default_voice_settings(cli_args.voice_id, api_key=cli_args.api_key)
+        print(json.dumps(voice_settings, indent=2))
         return
     
     input_source = cli_args.input
@@ -115,7 +123,7 @@ Examples:
     # Build voice settings
     voice_settings = {
         'use_speaker_boost': bool(cli_args.use_speaker_boost),
-        'speed': float(cli_args.speed) or 1.0,
+        'speed': float(cli_args.speed),
     }
     if cli_args.stability is not None:
         voice_settings['stability'] = cli_args.stability
@@ -169,25 +177,29 @@ def get_api_key(api_key: Optional[str] = None) -> str:
 def list_voices(api_key: Optional[str] = None) -> dict:
     """
     List all available voices from ElevenLabs API.
-    
     Args:
         api_key: ElevenLabs API key
-    
     Returns:
         Dictionary containing voices data
     """
-    url = "https://api.elevenlabs.io/v1/voices"
-    
     headers = {
         "Accept": "application/json",
         "xi-api-key": get_api_key(api_key)
     }
-    
-    response = requests.get(url, headers=headers)
-    
+    response = requests.get("https://api.elevenlabs.io/v1/voices", headers=headers)
     if response.status_code != 200:
         raise Exception(f"ElevenLabs API error: {response.status_code} - {response.text}")
-    
+    return response.json()
+
+
+def get_default_voice_settings(voice_id:str, api_key: Optional[str] = None) -> dict:
+    headers = {
+        "Accept": "application/json",
+        "xi-api-key": get_api_key(api_key)
+    }
+    response = requests.get(f"https://api.elevenlabs.io/v1/voices/{voice_id}/settings", headers=headers)
+    if response.status_code != 200:
+        raise Exception(f"ElevenLabs API error: {response.status_code} - {response.text}")
     return response.json()
 
 
@@ -382,7 +394,7 @@ def play_audio(audio_data: bytes, verbose:bool=True) -> None:
     Play audio data directly using system audio player.
     """
     # Create a temporary file to store the audio
-    temp_path = Path('/tmp/kpa-speak-{get_datetimestr()}.mp3')
+    temp_path = Path(f'/tmp/kpa-speak-{get_datetimestr()}.mp3')
     temp_path.write_bytes(audio_data)
     if verbose: print(f" - Wrote {temp_path}")
 
