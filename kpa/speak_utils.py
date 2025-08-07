@@ -28,13 +28,15 @@ Examples:
   kpa speak --list-voices
         """
     )
+    # Meta arguments
+    parser.add_argument('-j', '--json', help="Read settings from JSON file.  These will override defaults, and be overridden by command-line arguments.")
     
     # Positional arguments
     parser.add_argument('input', nargs='?', default='-', help='Input text file or "-" for stdin (default: -)')
     parser.add_argument('output', nargs='?', default='-', help='Output audio file or "-" to play directly (default: -)')
     
     # Voice settings
-    parser.add_argument('--voice-id', default=DEFAULT_VOICE_ID,
+    parser.add_argument('--voice-id', default=None,
                        help='Voice ID to use (default: Jessica voice)')
     parser.add_argument('--model-id', default="eleven_multilingual_v2",
                        help='Model ID to use (default: eleven_multilingual_v2)')
@@ -44,11 +46,11 @@ Examples:
                        help='How closely AI should adhere to original voice (0.0-1.0)')
     parser.add_argument('--style', type=float,
                        help='Style exaggeration of the voice (0.0-1.0)')
-    parser.add_argument('--use-speaker-boost', action='store_true',
+    parser.add_argument('--use-speaker-boost', type=bool, default=None,
                        help='Boost similarity to original speaker (increases latency)')
-    parser.add_argument('--speed', type=float, default=1.0,
+    parser.add_argument('--speed', type=float, default=None,
                        help='Speed of the voice (1.0 = normal, <1.0 = slower, >1.0 = faster)')
-    parser.add_argument('--seed', type=int, default=DEFAULT_SEED,
+    parser.add_argument('--seed', type=int, default=None,
                        help=f'Seed for deterministic generation (0-4294967295). Default: {DEFAULT_SEED}. Same seed with same parameters should produce similar results')
     
     # Text continuity settings
@@ -78,53 +80,73 @@ Examples:
     # Handle --list-voices option
     if cli_args.list_voices:
         voices = list_voices(cli_args.api_key)
-        print(json.dumps(voices, indent=2))
+        print(json.dumps(voices, indent=1))
         return
 
     # Handle --show-default-settings option
     if cli_args.show_default_voice_settings:
         voice_settings = get_default_voice_settings(cli_args.voice_id, api_key=cli_args.api_key)
-        print(json.dumps(voice_settings, indent=2))
+        print(json.dumps(voice_settings, indent=1))
         return
     
-    input_source = cli_args.input
-    output_file = cli_args.output
-    
-    # Read text from input source
-    if input_source == "-":
-        # Read from stdin
+    # Handle --json option
+    default_args_from_json = {}
+    if cli_args.json:
+        with open(cli_args.json, 'r') as f:
+            default_args_from_json = json.load(f)
+   
+    # Read input from file, STDIN, or `-j JSON`
+    if cli_args.input.endswith('.json'): print("You passed a JSON file as text input.  Did you mean to use `-j`?"); exit(1)
+    if cli_args.input == '-' and default_args_from_json.get('text') and sys.stdin.isatty():
+        text = default_args_from_json['text']
+    elif cli_args.input == "-":
+        if sys.stdin.isatty():
+            print('> Reading from STDIN... (hit Ctrl-D to end)')
         try:
             text = sys.stdin.read().strip()
         except Exception as e:
             print(f"Error reading from stdin: {e}")
             return
     else:
-        # Read from file
-        input_file = Path(input_source)
-        if not input_file.exists():
-            print(f"Error: Input file '{input_file}' does not exist")
-            return
-        
+        input_file = Path(cli_args.input)
         try:
             text = input_file.read_text().strip()
         except Exception as e:
             print(f"Error reading input file: {e}")
             return
-    
     if not text:
         print("Error: No text to convert")
         return
     
+    if cli_args.previous_text is None and default_args_from_json.get('previous_text'):
+        cli_args.previous_text = default_args_from_json['previous_text']
+    if cli_args.next_text is None and default_args_from_json.get('next_text'):
+        cli_args.next_text = default_args_from_json['next_text']
+
+    if cli_args.voice_id is None:
+        if default_args_from_json.get('voice_id'):
+            cli_args.voice_id = default_args_from_json['voice_id']
+        else:
+            cli_args.voice_id = DEFAULT_VOICE_ID
+
     # Validate seed parameter
-    if not (0 <= cli_args.seed <= 4294967295):
+    if cli_args.seed is None and default_args_from_json.get('seed') is not None:
+        cli_args.seed = int(default_args_from_json['seed'])
+    if cli_args.seed is not None and not (0 <= cli_args.seed <= 4294967295):
         print("Error: Seed must be between 0 and 4294967295")
         return
+    if cli_args.seed is None:
+        cli_args.seed = DEFAULT_SEED
     
     # Build voice settings
-    voice_settings = {
-        'use_speaker_boost': bool(cli_args.use_speaker_boost),
-        'speed': float(cli_args.speed),
-    }
+    if default_args_from_json.get('voice_settings'):
+        voice_settings = default_args_from_json['voice_settings']
+    else:
+        voice_settings = {}
+    if cli_args.use_speaker_boost is not None:
+        voice_settings['use_speaker_boost'] = cli_args.use_speaker_boost
+    if cli_args.speed is not None:
+        voice_settings['speed'] = cli_args.speed
     if cli_args.stability is not None:
         voice_settings['stability'] = cli_args.stability
     if cli_args.similarity_boost is not None:
@@ -155,12 +177,12 @@ Examples:
                 next_text=cli_args.next_text
             )
         
-        if output_file == "-":
+        if cli_args.output == "-":
             # Play audio directly
             play_audio(audio_data)
         else:
             # Write audio data to output file
-            output_path = Path(output_file)
+            output_path = Path(cli_args.output)
             output_path.write_bytes(audio_data)
             print(f"Successfully generated audio: {output_path}")
         
@@ -385,7 +407,24 @@ def text_to_speech(
     
     if response.status_code != 200:
         raise Exception(f"ElevenLabs API error: {response.status_code} - {response.text}")
-    
+
+    datetime_str = get_datetimestr()
+    temp_json_path = Path(f'/tmp/kpa-speak-{datetime_str}.json')
+    temp_mp3_path = Path(f'/tmp/kpa-speak-{datetime_str}.mp3')
+    temp_mp3_path.write_bytes(response.content)
+    log_obj = {
+        'output_path': str(temp_mp3_path),
+        'voice_id': voice_id,
+        'voice_settings': voice_settings,
+        'text': text,
+        'previous_text': previous_text,
+        'next_text': next_text,
+        'model_id': model_id,
+        'seed': seed,
+    }
+    temp_json_path.write_text(json.dumps(log_obj, indent=1), encoding="utf-8")
+    print(f" - Wrote {str(temp_json_path)}")
+
     return response.content
 
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+## TODO: Move system_prompt to an option.
+
 import argparse
 import functools
 import datetime, json
 import os
-from typing import Any
+from typing import Any, Optional
 import requests
 from pathlib import Path
 from kpa.func_cache_utils import shelve_cache
@@ -23,8 +25,9 @@ def run_llm_command(argv:list[str]) -> None:
 
     if not argv or {'-h', '--help'}.intersection(argv):
         print("Usage:")
-        print("  kpa llm -m <model_name> <user_prompt>")
-        print("  kpa llm -m <model_name> <system_prompt> <user_prompt>")
+        print("  kpa llm -m gpt-4.1 'What is 7*8?'")
+        print("  kpa llm -m gpt-4.1 prompt.txt")
+        print("  kpa llm -m gpt-4.1 --instructions instructions.txt prompt.txt")
         print("  kpa llm --log")
         print("\nList of models:")
         for model_name in get_models_config().keys(): print(f"  {model_name}")
@@ -38,42 +41,39 @@ def run_llm_command(argv:list[str]) -> None:
         print(log_paths[-1].read_text())
         return
 
+    ## Parse and resolve args:
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-m', '--model', type=str, default=str(list(get_models_config().keys())[0]))
+    arg_parser.add_argument('--temperature', type=float, help="Not supported on all models")
+    arg_parser.add_argument('--instructions', help="system prompt")
     arg_parser.add_argument('--no-print-logs', action='store_false', dest='print_logs', default=True)
-    arg_parser.add_argument('prompts', nargs='+')
+    arg_parser.add_argument('user_prompt')
     args = arg_parser.parse_args(argv)
 
-    assert len(args.prompts) <= 2, f'too many prompts: {args.prompts}'
-    if len(args.prompts) == 1:
-        user_prompt = args.prompts[0]
-        system_prompt = ''
-    else:
-        user_prompt = args.prompts[0]
-        system_prompt = args.prompts[1]
-
     model_name = get_full_model_name(args.model)
-    if system_prompt and Path(system_prompt).expanduser().exists():
-        system_prompt_text = Path(system_prompt).read_text()
-        print('=> reading system prompt from file:', system_prompt, f' ({len(system_prompt_text):,} chars)')
-        system_prompt = system_prompt_text
-    if user_prompt and Path(user_prompt).expanduser().exists():
-        user_prompt_text = Path(user_prompt).read_text()
-        print('=> reading user prompt from file:', user_prompt, f' ({len(user_prompt_text):,} chars)')
-        user_prompt = user_prompt_text
-    output, resp_data = run_llm(model_name, system_prompt, user_prompt)
+    if args.instructions and Path(args.instructions).expanduser().exists():
+        instructions_text = Path(args.instructions).read_text()
+        print('=> reading instructions from file:', args.instructions, f' ({len(args.instructions):,} chars)')
+        args.instructions = instructions_text
+    if args.user_prompt and Path(args.user_prompt).expanduser().exists():
+        user_prompt_text = Path(args.user_prompt).read_text()
+        print('=> reading user prompt from file:', args.user_prompt, f' ({len(user_prompt_text):,} chars)')
+        args.user_prompt = user_prompt_text
+
+    ## Run LLM:
+    output, resp_data = run_llm(model_name, args.user_prompt, instructions=args.instructions, temperature=args.temperature)
     if args.print_logs: print(Path(resp_data['log_path']).read_text()); print()
     else: print(f"=> logs: {resp_data['log_path']}")
     print(output)
 
 
 @shelve_cache
-def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:str='') -> tuple[str, dict]:
+def run_llm(model_name:str, user_prompt:str, instructions:Optional[str]=None, request_label:str='', temperature:Optional[float]=None) -> tuple[str, dict]:
     ## TOOD: Support json_schema response_format, and list which models actually enforce that.
     if not request_label: request_label = f'{model_name}-{get_datetime_str()}'
 
     assert len(user_prompt) < 1e6, (len(user_prompt), user_prompt[-100:])
-    assert len(system_prompt) < 10e3, (len(system_prompt), system_prompt[-100:])
+    if instructions: assert len(instructions) < 20e3, (len(instructions), instructions[-100:])
 
     model_config = get_models_config()[model_name]
 
@@ -91,22 +91,27 @@ def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:st
         "stream": False,
         "store": False,
     }
+    if temperature is not None:
+        data['temperature'] = temperature
     if model_config['api_type'] == 'openai':
         data['input'] = [
-            {"role": "developer", "content": system_prompt},
+            {"role": "developer", "content": instructions},
             {"role": "user", "content": user_prompt},
         ]
         if not data['input'][0]['content']: del data['input'][0]
     elif model_config['api_type'] == '/chat/completions':
         data['messages'] = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": instructions},
             {"role": "user", "content": user_prompt},
         ]
         if not data['messages'][0]['content']: del data['messages'][0]
     else:  # This covers the other api_types
-        data['system'] = [{"type": "text", "text": system_prompt}]
+        if instructions: data['system'] = [{"type": "text", "text": instructions}]
         data['messages'] = [{"role": "user", "content": user_prompt}]
-        if not data['system'][0]['text']: del data['system']
+
+        if model_config['api_type'] == 'claude':
+            del data['store']  # Not allowed
+            data['max_tokens'] = 64_000  # Max allowed
 
     log_path = str(request_logging_dir / f'{request_label}.json')
     write_log(log_path, {
@@ -114,10 +119,12 @@ def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:st
         "request_headers": headers,
         "request_data": data,
     })
-    
+    print(f"=> Logged req to {log_path}")
+
     response = requests.post(model_config['url'], headers=headers, json=data)
     try:
         x = response.json()
+        assert isinstance(x, dict), x
     except Exception as e:
         write_log(log_path, {
             "request_url": model_config['url'],
@@ -137,11 +144,12 @@ def run_llm(model_name:str, system_prompt:str, user_prompt:str, request_label:st
         "response_headers": dict(response.headers),
         "response_data": x,
     })
+    print(f"=> Logged resp to {log_path}")
 
-    if 'x-ratelimit-reset-requests' in response.headers or 'x-ratelimit-reset-tokens' in response.headers:
-        ## I know this applies to openai, but might as well include for the others.
-        ## TODO: Parse "6m3s" etc.
-        raise ApiOverloadedException(x.get('error', {}).get('message','error'), wait_seconds=120)
+    # if 'x-ratelimit-reset-requests' in response.headers or 'x-ratelimit-reset-tokens' in response.headers:  # This only applies if we got 5XX status!
+    #     ## I know this applies to openai, but might as well include for the others.
+    #     ## TODO: Parse "6m3s" etc.
+    #     raise ApiOverloadedException(x.get('error', {}).get('message','error'), wait_seconds=120)
     if 'retry-after' in response.headers:
         ## I know this applies to claude, but might as well include for the others.
         wait_seconds = int(response.headers['retry-after'])
