@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # to install locally: `pip install -e .`
 # to install latest from pypi: `pip3 install -U --upgrade-strategy=eager --no-cache-dir kpa`
-# to publish: `./setup.py publish`
+# to publish: `kpa pip-publish kpa`
 
 from setuptools import setup
 import importlib.util, types, sys
@@ -14,13 +14,6 @@ def load_module_from_path(filepath:str) -> types.ModuleType:
     spec.loader.exec_module(module)
     return module
 version = load_module_from_path('kpa/version.py').version
-
-
-if sys.argv[-1] in ['publish', 'pub']:
-    pypi_utils = load_module_from_path('kpa/pypi_utils.py')
-    pypi_utils.upload_package(package_name='Kpa')
-    sys.exit(0)
-
 
 setup(
     name='Kpa',

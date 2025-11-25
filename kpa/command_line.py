@@ -14,6 +14,7 @@ available commands:
   kpa watch
   kpa skel
   kpa pip-find-updates
+  kpa pip-publish
   kpa termcolor
   kpa serve-status-code (status-code-server)
   kpa redirect-server
@@ -49,6 +50,11 @@ def main() -> None:
     elif command in ["pip-find-updates", 'pfu']:
         from .pip_utils import run as pfu_run
         pfu_run(sys.argv[2:])
+
+    elif command in ["pip-publish", 'pip-pub']:
+        from .pypi_utils import upload_package
+        if len(sys.argv) <= 2 or not sys.argv[2]: raise Exception("You must supply the package name.")
+        upload_package(package_name=sys.argv[2])
 
     elif command == 'skel':
         from .skel import run as skel_run
