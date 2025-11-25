@@ -1,4 +1,82 @@
 
+from .func_cache_utils import shelve_cache
+
+from pathlib import Path
+import json, shelve, time, datetime
+from typing import Any, TypedDict
+
+HTTP_Response = TypedDict('HTTP_Response', {
+    'status_code': int,
+    'headers': dict[str, str],
+    'text': str,
+})
+
+
+def get(url:str, user_agent:str|None=None, raise_for_status:bool=True, validate_json:bool=False, log:bool=True, log_dir_label:str='default', use_cache:bool=False, cache_max_age:float|None=None) -> HTTP_Response:
+    ## Q: This returns str, but maybe it should support bytes?  Eg, for a jpg/pdf
+    import requests
+    headers = {
+        'User-Agent': user_agent or 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:62.0) Gecko/20100101 Firefox/62.0',
+    }
+
+    cache_filepath = Path('/tmp/kpa-request-cache') / (log_dir_label + '.shelve')
+    cache_key = json.dumps([url, user_agent], separators=(',', ':'))
+    log_filepath = Path('/tmp/kpa-request-logs') / log_dir_label / (get_datetime_digits() + '-' + url.replace('/', '%') + '.log')
+
+    if use_cache:
+        cache_filepath.parent.mkdir(exist_ok=True, parents=True)
+        with shelve.open(str(cache_filepath)) as cache:
+            if cache_key in cache:
+                cached_timestamp, cached_http_response = cache[cache_key]
+                if not cache_max_age or time.time() - cached_timestamp < cache_max_age:
+                    assert isinstance(cached_http_response, dict)
+                    assert isinstance(cached_http_response['status_code'], int)
+                    assert isinstance(cached_http_response['headers'], dict)
+                    assert isinstance(cached_http_response['text'], str)
+                    return cached_http_response
+    if log:
+        log_filepath.parent.mkdir(exist_ok=True, parents=True)
+        log_data = {
+            'url': url,
+            'headers': headers,
+            'datetime': datetime.datetime.now().isoformat(),
+        }
+        log_filepath.write_text(json.dumps(log_data, indent=2))
+    resp = requests.get(url, headers=headers)
+    if log:
+        log_data['resp'] = {
+            'status_code': resp.status_code,
+            'headers': dict(resp.headers),
+            'text': resp.text,
+        }
+        log_filepath.write_text(json.dumps(log_data, indent=2))
+    if raise_for_status:
+        resp.raise_for_status()
+    if validate_json:
+        json.loads(resp.text)
+    if use_cache and resp.status_code == 200:
+        with shelve.open(str(cache_filepath)) as cache:
+            cache[cache_key] = (time.time(), {
+                'status_code': resp.status_code,
+                'headers': dict(resp.headers),
+                'text': resp.text,
+            })
+    return HTTP_Response({
+        'status_code': resp.status_code,
+        'headers': dict(resp.headers),
+        'text': resp.text,
+    })
+
+def get_json(url:str, user_agent:str|None=None, raise_for_status:bool=True, log:bool=True, log_dir_label:str='default', use_cache:bool=False, cache_max_age:float|None=None) -> Any:
+    resp = get(url, user_agent=user_agent, raise_for_status=raise_for_status, validate_json=True, log=log, log_dir_label=log_dir_label, use_cache=use_cache, cache_max_age=cache_max_age)
+    return json.loads(resp['text'])
+
+
+
+def get_datetime_digits():
+    import datetime
+    return datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+
 def get_ip():
     import subprocess
     return subprocess.check_output('dig +short myip.opendns.com @resolver1.opendns.com'.split()).strip().decode('ascii')
@@ -29,42 +107,6 @@ def open_browser(url):
             pass
     return False
 
-
-def run_gunicorn(app, host='0.0.0.0', port=5000, use_reloader=True, num_workers=4, accesslog='-'):
-    '''takes a flask app or perhaps other kinds of wsgi apps'''
-    # TODO: figure out how to suppress sigwinch
-    import gunicorn.app.base
-    class StandaloneGunicornApplication(gunicorn.app.base.BaseApplication):
-        # from <http://docs.gunicorn.org/en/stable/custom.html>
-        def __init__(self, app, opts=None):
-            self.application = app
-            self.options = opts or {}
-            super().__init__()
-        def load_config(self):
-            for key, val in self.options.items():
-                self.cfg.set(key, val)
-        def load(self):
-            return self.application
-    options = {
-        'bind': '{}:{}'.format(host, port),
-        'reload': use_reloader,
-        'workers': num_workers,
-        'accesslog': accesslog,
-        'access_log_format': '%(t)s | %(s)s | %(L)ss | %(m)s %(U)s %(q)s | resp_len:%(B)s | referrer:"%(f)s" | ip:%(h)s | agent:%(a)s',
-        # docs @ <http://docs.gunicorn.org/en/stable/settings.html#access-log-format>
-        'worker_class': 'gevent',
-    }
-    sga = StandaloneGunicornApplication(app, options)
-    # # debugging:
-    # for skey,sval in sorted(sga.cfg.settings.items()):
-    #     cli_args = sval.cli and ' '.join(sval.cli) or ''
-    #     val = str(sval.value)
-    #     print(f'cfg.{skey:25} {cli_args:28} {val}')
-    #     if sval.value != sval.default:
-    #         print(f'             default: {str(sval.default)}')
-    #         print(f'             short: {sval.short}')
-    #         print(f'             desc: <<\n{sval.desc}\n>>')
-    sga.run()
 
 
 from .func_cache_utils import shelve_cache

@@ -2,6 +2,44 @@
 import sys, html, urllib, re, os
 
 
+def run_gunicorn(app, host='0.0.0.0', port=5000, use_reloader=True, num_workers=4, accesslog='-'):
+    '''takes a flask app or perhaps other kinds of wsgi apps'''
+    # TODO: figure out how to suppress sigwinch
+    import gunicorn.app.base
+    class StandaloneGunicornApplication(gunicorn.app.base.BaseApplication):
+        # from <http://docs.gunicorn.org/en/stable/custom.html>
+        def __init__(self, app, opts=None):
+            self.application = app
+            self.options = opts or {}
+            super().__init__()
+        def load_config(self):
+            for key, val in self.options.items():
+                self.cfg.set(key, val)
+        def load(self):
+            return self.application
+    options = {
+        'bind': '{}:{}'.format(host, port),
+        'reload': use_reloader,
+        'workers': num_workers,
+        'accesslog': accesslog,
+        'access_log_format': '%(t)s | %(s)s | %(L)ss | %(m)s %(U)s %(q)s | resp_len:%(B)s | referrer:"%(f)s" | ip:%(h)s | agent:%(a)s',
+        # docs @ <http://docs.gunicorn.org/en/stable/settings.html#access-log-format>
+        'worker_class': 'gevent',
+    }
+    sga = StandaloneGunicornApplication(app, options)
+    # # debugging:
+    # for skey,sval in sorted(sga.cfg.settings.items()):
+    #     cli_args = sval.cli and ' '.join(sval.cli) or ''
+    #     val = str(sval.value)
+    #     print(f'cfg.{skey:25} {cli_args:28} {val}')
+    #     if sval.value != sval.default:
+    #         print(f'             default: {str(sval.default)}')
+    #         print(f'             short: {sval.short}')
+    #         print(f'             desc: <<\n{sval.desc}\n>>')
+    sga.run()
+
+
+
 def status_code_server(environ, start_response):
     # TODO: query all status codes using [urllib.request.urlopen, requests.get, requests.get.raise_for_status] to compare error-handling
     #  - results should be: (urlopen / requests.get*)
@@ -161,8 +199,9 @@ def magic_directory_server(environ, start_response):
     print(f)
     # Note: work-in-progress
 
+
+
 def serve(app, port=5000):
-    from .http_utils import run_gunicorn
     try:
         run_gunicorn(app, port=port, use_reloader=False)
     except KeyboardInterrupt:
