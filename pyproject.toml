@@ -16,3 +16,12 @@ urls = {Home = "https://github.com/pjvandehaar/kpa"}
 
 [project.scripts]
 kpa = "kpa.command_line:main"
+
+[project.optional-dependencies]
+all = [
+    'boltons',
+    'beautifulsoup4',
+    'watchfiles',
+    'requests',
+    'gunicorn',
+]
