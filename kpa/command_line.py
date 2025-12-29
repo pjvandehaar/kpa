@@ -53,8 +53,7 @@ def main() -> None:
 
     elif command in ["pip-publish", 'pip-pub']:
         from .pypi_utils import upload_package
-        if len(sys.argv) <= 2 or not sys.argv[2]: raise Exception("You must supply the package name.")
-        upload_package(package_name=sys.argv[2])
+        upload_package(package_name=sys.argv[2] if sys.argv[2:] else None)
 
     elif command == 'skel':
         from .skel import run as skel_run

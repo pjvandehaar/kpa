@@ -1,0 +1,18 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "kpa"
+authors = [{name = "Peter VandeHaar", email = "pjvandehaar@gmail.com"}]
+description = "Simple python utils"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: Unix",
+]
+dynamic = ["version"]
+urls = {Home = "https://github.com/pjvandehaar/kpa"}
+
+[project.scripts]
+kpa = "kpa.command_line:main"

@@ -8,3 +8,4 @@ _f()
 del _f
 
 from .dev_utils import run as lint
+from .version import version as __version__
