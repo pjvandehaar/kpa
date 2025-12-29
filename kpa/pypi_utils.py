@@ -111,7 +111,7 @@ def publish() -> None:
         raise Exception('=> Please create ~/.pypirc with your PyPI credentials.')
 
     if shutil.which('uv'):
-        token = re.search(r'token = (\S+)', pypirc_path.read_text()).group(1)
+        token = re.search(r'password = (\S+)', pypirc_path.read_text()).group(1)
         print_and_run(['uv', 'publish', '--token', token], check=True)
         return
 
