@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 
-import os, datetime, shutil, sys, argparse, time, requests, subprocess as subp, tempfile, json
+# Q: Can I omit voice_id and model_id and just get the latest default settings?
+# TODO: Add number-textualization, which converts "1919" -> "nineteen nineteen" (or "one thousand nine hundred nineteen"?)
+# TODO: Add LLM cleanup step, maybe using Gemini/Claude.
+# TODO: Add html-clipboard-reading, which feeds into code and LLM.  Experiment with <https://tools.simonwillison.net/clipboard-viewer>.
+
+
+import os, datetime, shutil, sys, argparse, time, requests, subprocess as subp, tempfile, json, dataclasses
 from pathlib import Path
 from typing import Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-DEFAULT_VOICE_ID = "cgSgspJ2msm6clMCkdW9"  # Jessica, see <https://elevenlabs.io/app/default-voices>
-DEFAULT_MODEL_ID = "eleven_multilingual_v2"
+DEFAULT_VOICE_ID = "CwhRBWXzGAHq8TQ4Fs17"  # Roger, see <https://elevenlabs.io/app/default-voices>
+DEFAULT_FANCIER_MODEL_ID = "eleven_multilingual_v2"
+DEFAULT_CHEAPER_MODEL_ID = "eleven_turbo_v2_5"
 DEFAULT_SEED = 9373
 
 
@@ -30,17 +37,21 @@ Examples:
     )
     # Meta arguments
     parser.add_argument('-j', '--json', help="Read settings from JSON file.  These will override defaults, and be overridden by command-line arguments.")
-    
+    parser.add_argument('-v', '--verbose')  # TODO: Use this!  Print the json file!
+
     # Positional arguments
     parser.add_argument('input', nargs='?', default='-', help='Input text file or "-" for stdin (default: -)')
     parser.add_argument('output', nargs='?', default='-', help='Output audio file or "-" to play directly (default: -)')
-    
+
     # Voice settings
     parser.add_argument('--voice-id', default=None,
                        help='Voice ID to use (default: Jessica voice)')
-    parser.add_argument('--model-id', default="eleven_multilingual_v2",
+    parser.add_argument('--model-id',
                        help='Model ID to use (default: eleven_multilingual_v2)')
-    parser.add_argument('--stability', type=float, 
+    parser.add_argument('--fancier', action='store_true',
+                       help='Use default fancier model (turbo/mini/whatever)')
+
+    parser.add_argument('--stability', type=float,
                        help='Voice stability (0.0-1.0). Lower values introduce broader emotional range')
     parser.add_argument('--similarity-boost', type=float,
                        help='How closely AI should adhere to original voice (0.0-1.0)')
@@ -52,31 +63,36 @@ Examples:
                        help='Speed of the voice (1.0 = normal, <1.0 = slower, >1.0 = faster)')
     parser.add_argument('--seed', type=int, default=None,
                        help=f'Seed for deterministic generation (0-4294967295). Default: {DEFAULT_SEED}. Same seed with same parameters should produce similar results')
-    
+
     # Text continuity settings
-    parser.add_argument('--previous-text', 
+    parser.add_argument('--previous-text',
                        help='Text that came before the current text. Improves speech continuity when concatenating multiple generations')
     parser.add_argument('--next-text',
                        help='Text that comes after the current text. Improves speech continuity when concatenating multiple generations')
-    
+
     # Processing options
     parser.add_argument('--parallel', action='store_true',
                        help='Split text at newlines and generate audio for each line in parallel, then concatenate')
-    
-    # Voice management
+
+    # Not TTS:
     parser.add_argument('--list-voices', action='store_true',
                        help='List all available voices in JSON format and exit')
     parser.add_argument('--show-default-voice-settings', action='store_true',
                        help='List the default settings for a voice_id and exit')
-    
+    parser.add_argument('--show-credits', action='store_true')
+
     # API settings
     parser.add_argument('--api-key', help='ElevenLabs API key (overrides ELEVENLABS_API_KEY env var)')
-    
+
     try:
         cli_args = parser.parse_args(args)
     except SystemExit:
         return
-    
+
+    if cli_args.show_credits:
+        print(get_credit_info(cli_args.api_key))
+        return
+
     # Handle --list-voices option
     if cli_args.list_voices:
         voices = list_voices(cli_args.api_key)
@@ -88,13 +104,13 @@ Examples:
         voice_settings = get_default_voice_settings(cli_args.voice_id, api_key=cli_args.api_key)
         print(json.dumps(voice_settings, indent=1))
         return
-    
+
     # Handle --json option
     default_args_from_json = {}
     if cli_args.json:
         with open(cli_args.json, 'r') as f:
             default_args_from_json = json.load(f)
-   
+
     # Read input from file, STDIN, or `-j JSON`
     if cli_args.input.endswith('.json'): print("You passed a JSON file as text input.  Did you mean to use `-j`?"); exit(1)
     if cli_args.input == '-' and default_args_from_json.get('text') and sys.stdin.isatty():
@@ -117,7 +133,7 @@ Examples:
     if not text:
         print("Error: No text to convert")
         return
-    
+
     if cli_args.previous_text is None and default_args_from_json.get('previous_text'):
         cli_args.previous_text = default_args_from_json['previous_text']
     if cli_args.next_text is None and default_args_from_json.get('next_text'):
@@ -137,7 +153,7 @@ Examples:
         return
     if cli_args.seed is None:
         cli_args.seed = DEFAULT_SEED
-    
+
     # Build voice settings
     if default_args_from_json.get('voice_settings'):
         voice_settings = default_args_from_json['voice_settings']
@@ -154,6 +170,9 @@ Examples:
     if cli_args.style is not None:
         voice_settings['style'] = cli_args.style
 
+    model_id = cli_args.model_id or (DEFAULT_CHEAPER_MODEL_ID if not cli_args.fancier else DEFAULT_FANCIER_MODEL_ID)
+    assert model_id
+
     # Convert text to speech
     try:
         if cli_args.parallel:
@@ -161,7 +180,7 @@ Examples:
                 text=text,
                 api_key=cli_args.api_key,
                 voice_id=cli_args.voice_id,
-                model_id=cli_args.model_id,
+                model_id=model_id,
                 voice_settings=voice_settings,
                 seed=cli_args.seed
             )
@@ -170,13 +189,13 @@ Examples:
                 text=text,
                 api_key=cli_args.api_key,
                 voice_id=cli_args.voice_id,
-                model_id=cli_args.model_id,
+                model_id=model_id,
                 voice_settings=voice_settings,
                 seed=cli_args.seed,
                 previous_text=cli_args.previous_text,
                 next_text=cli_args.next_text
             )
-        
+
         if cli_args.output == "-":
             # Play audio directly
             play_audio(audio_data)
@@ -185,9 +204,12 @@ Examples:
             output_path = Path(cli_args.output)
             output_path.write_bytes(audio_data)
             print(f"Successfully generated audio: {output_path}")
-        
+
     except Exception as e:
         print(f"Error generating audio: {e}")
+
+    credits_remaining = get_credit_info().remaining_credits
+    print(f' - {credits_remaining:,} credits left')
 
 def get_api_key(api_key: Optional[str] = None) -> str:
     if api_key: return api_key
@@ -229,14 +251,14 @@ def text_to_speech_parallel(
     text: str,
     api_key: Optional[str] = None,
     voice_id: str = DEFAULT_VOICE_ID,
-    model_id: str = DEFAULT_MODEL_ID,
+    model_id: str = DEFAULT_CHEAPER_MODEL_ID,
     voice_settings: Optional[dict] = None,
     seed: int = DEFAULT_SEED,
     max_workers: int = 5
 ) -> bytes:
     """
     Convert text to speech by splitting at newlines and processing in parallel.
-    
+
     Args:
         text: Text to convert to speech
         api_key: ElevenLabs API key
@@ -245,16 +267,16 @@ def text_to_speech_parallel(
         voice_settings: Voice settings dictionary
         seed: Base seed for deterministic generation
         max_workers: Maximum number of parallel workers
-    
+
     Returns:
         Concatenated audio data as bytes
     """
     # Split text into lines
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     if not lines:
-        raise Exception("No non-empty lines found in text")    
+        raise Exception("No non-empty lines found in text")
     print(f"Processing {len(lines)} lines in parallel...")
-        
+
     # Generate audio for each line in parallel
     def generate_line_audio(line_index: int) -> tuple[int, bytes]:
         audio_data = text_to_speech(
@@ -281,7 +303,7 @@ def text_to_speech_parallel(
             except Exception as e:
                 print(f"Error processing line {line_index + 1}: {e}")
                 raise
-    
+
     # Concatenate audio segments
     print("Concatenating audio segments...")
     audio_segments = [audio_for_line[i] for i in range(len(lines))]
@@ -291,59 +313,59 @@ def text_to_speech_parallel(
 def concatenate_audio_segments(audio_segments: list[bytes]) -> bytes:
     """
     Concatenate multiple MP3 audio segments using ffmpeg.
-    
+
     Args:
         audio_segments: List of audio data as bytes
-    
+
     Returns:
         Concatenated audio data as bytes
     """
     if not audio_segments:
         raise Exception("No audio segments to concatenate")
-    
+
     if len(audio_segments) == 1:
         return audio_segments[0]
-    
+
     # Create temporary files for each segment
     temp_files: list[Path] = []
     temp_dir = tempfile.mkdtemp()
-    
+
     try:
         # Write each segment to a temporary file
         for i, audio_data in enumerate(audio_segments):
             temp_file = Path(temp_dir) / f"segment_{i:03d}.mp3"
             temp_file.write_bytes(audio_data)
             temp_files.append(temp_file)
-        
+
         # Create concat file list for ffmpeg
         filelist_file = Path(temp_dir) / "concat_list.txt"
         with open(filelist_file, 'w') as f:
             for temp_file in temp_files:
                 f.write(f"file '{temp_file.absolute()}'\n")
-        
+
         # Output file
         output_file = Path(temp_dir) / "concatenated.mp3"
-        
+
         # Run ffmpeg to concatenate
         cmd = [
             'ffmpeg', '-hide_banner', '-loglevel', 'error',
-            '-f', 'concat', '-safe', '0', 
-            '-i', str(filelist_file), 
-            '-c', 'copy', 
+            '-f', 'concat', '-safe', '0',
+            '-i', str(filelist_file),
+            '-c', 'copy',
             str(output_file),
             '-y'  # Overwrite output file
         ]
-        
+
         subp.run(
-            cmd, 
-            capture_output=True, 
+            cmd,
+            capture_output=True,
             text=True,
             check=True
         )
-        
+
         # Read the concatenated result
         return output_file.read_bytes()
-        
+
     except subp.CalledProcessError as e:
         raise Exception(f"ffmpeg concatenation failed: {e.stderr}")
     except FileNotFoundError:
@@ -353,10 +375,10 @@ def concatenate_audio_segments(audio_segments: list[bytes]) -> bytes:
 
 
 def text_to_speech(
-    text: str, 
-    api_key: Optional[str] = None, 
+    text: str,
+    api_key: Optional[str] = None,
     voice_id: str = DEFAULT_VOICE_ID,
-    model_id: str = DEFAULT_MODEL_ID,
+    model_id: str = DEFAULT_CHEAPER_MODEL_ID,
     voice_settings: Optional[dict] = None,
     seed: int = DEFAULT_SEED,
     previous_text: Optional[str] = None,
@@ -364,7 +386,7 @@ def text_to_speech(
 ) -> bytes:
     """
     Convert text to speech using ElevenLabs API.
-    
+
     Args:
         text: Text to convert to speech
         api_key: ElevenLabs API key
@@ -374,7 +396,7 @@ def text_to_speech(
         seed: Seed for deterministic generation
         previous_text: Text that came before the current text
         next_text: Text that comes after the current text
-    
+
     Returns:
         Audio data as bytes
     """
@@ -385,26 +407,26 @@ def text_to_speech(
         "Content-Type": "application/json",
         "xi-api-key": get_api_key(api_key),
     }
-    
+
     data: dict[str,Any] = {
         "text": text,
         "model_id": model_id,
         "voice_settings": voice_settings,
     }
-    
+
     # Only include seed if provided
     if seed is not None:
         data["seed"] = seed
-    
+
     # Add text continuity parameters
     if previous_text is not None:
         data["previous_text"] = previous_text
-    
+
     if next_text is not None:
         data["next_text"] = next_text
-    
+
     response = requests.post(url, json=data, headers=headers)
-    
+
     if response.status_code != 200:
         raise Exception(f"ElevenLabs API error: {response.status_code} - {response.text}")
 
@@ -457,3 +479,36 @@ def play_audio(audio_data: bytes, verbose:bool=True) -> None:
 
 
 def get_datetimestr() -> str: return datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+
+
+@dataclasses.dataclass
+class CreditInfo:
+    total_credits: int
+    remaining_credits: int
+    reset_datetimestr: str
+
+def get_credit_info(api_key:str|None=None) -> CreditInfo:
+    headers = {
+        "Accept": "application/json",
+        "xi-api-key": get_api_key(api_key)
+    }
+    resp = requests.get('https://api.elevenlabs.io/v1/user', headers=headers)
+    try:
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        raise Exception(f"Failed with resp={resp} and resp.content={repr(resp.content)}") from exc
+    try:
+        total_credits = int(data['subscription']['character_limit'])
+        used_credits = int(data['subscription']['character_count'])
+        remaining_credits = total_credits - used_credits
+        reset_timestamp = int(data['subscription']['next_character_count_reset_unix'])
+        reset_datetimestr = datetime.datetime.fromtimestamp(reset_timestamp).strftime('%Y-%m-%d_%H:%M:%S')
+    except Exception as exc:
+        raise Exception(f"Failed with resp.json()={repr(data)}") from exc
+    return CreditInfo(
+        total_credits=total_credits,
+        remaining_credits=remaining_credits,
+        reset_datetimestr=reset_datetimestr,
+    )
+
