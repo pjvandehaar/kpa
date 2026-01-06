@@ -47,6 +47,20 @@ def main() -> None:
         from .speak_utils import run_speak_command
         run_speak_command(sys.argv[2:])
 
+    elif command == 'speak-local':
+        from .speak_local_utils import run_speak_local_command
+        run_speak_local_command(sys.argv[2:])
+
+    elif command == 'play':
+        from .speak_utils import play_audio_file
+        if len(sys.argv) == 3:
+            play_audio_file(sys.argv[2])
+        elif len(sys.argv) == 4:
+            play_audio_file(sys.argv[2], playspeed=float(sys.argv[3]))
+        else:
+            print("Usage: kpa play <audio_file> [playspeed]")
+            exit(1)
+
     elif command in ["pip-find-updates", 'pfu']:
         from .pip_utils import run as pfu_run
         pfu_run(sys.argv[2:])

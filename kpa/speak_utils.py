@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 
 # Q: Can I omit voice_id and model_id and just get the latest default settings?
-# TODO: Add number-textualization, which converts "1919" -> "nineteen nineteen" (or "one thousand nine hundred nineteen"?)
-# TODO: Add LLM cleanup step, maybe using Gemini/Claude.
-# TODO: Add html-clipboard-reading, which feeds into code and LLM.  Experiment with <https://tools.simonwillison.net/clipboard-viewer>.
+# TODO: Add `--textualize-numbers`, ("1919" -> "nineteen nineteen")
+# TODO: Add `--llm-cleanup`.
+# TODO: Add `--clipboard-html`, like <https://tools.simonwillison.net/clipboard-viewer>, and using Gemini/Claude.
+
+# TOOD: Add `--kokoro`.
 
 
 import os, datetime, shutil, sys, argparse, time, requests, subprocess as subp, tempfile, json, dataclasses
 from pathlib import Path
 from typing import Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from .pypi_utils import print_and_run
+
 
 DEFAULT_VOICE_ID = "CwhRBWXzGAHq8TQ4Fs17"  # Roger, see <https://elevenlabs.io/app/default-voices>
 DEFAULT_FANCIER_MODEL_ID = "eleven_multilingual_v2"
@@ -61,6 +66,8 @@ Examples:
                        help='Boost similarity to original speaker (increases latency)')
     parser.add_argument('--speed', type=float, default=None,
                        help='Speed of the voice (1.0 = normal, <1.0 = slower, >1.0 = faster)')
+    parser.add_argument('--playspeed', type=float, default=None,
+                       help='Speed multiplier for playback, requires ffmpeg/ffplay (1.0 = normal, <1.0 = slower, >1.0 = faster)')
     parser.add_argument('--seed', type=int, default=None,
                        help=f'Seed for deterministic generation (0-4294967295). Default: {DEFAULT_SEED}. Same seed with same parameters should produce similar results')
 
@@ -198,7 +205,7 @@ Examples:
 
         if cli_args.output == "-":
             # Play audio directly
-            play_audio(audio_data)
+            play_audio(audio_data, playspeed=cli_args.playspeed)
         else:
             # Write audio data to output file
             output_path = Path(cli_args.output)
@@ -450,7 +457,7 @@ def text_to_speech(
     return response.content
 
 
-def play_audio(audio_data: bytes, verbose:bool=True) -> None:
+def play_audio(audio_data: bytes, playspeed:float|None=None, verbose:bool=True) -> None:
     """
     Play audio data directly using system audio player.
     """
@@ -458,14 +465,29 @@ def play_audio(audio_data: bytes, verbose:bool=True) -> None:
     temp_path = Path(f'/tmp/kpa-speak-{get_datetimestr()}.mp3')
     temp_path.write_bytes(audio_data)
     if verbose: print(f" - Wrote {temp_path}")
+    play_audio_file(temp_path, playspeed, verbose)
 
+
+def play_audio_file(audio_path: Path|str, playspeed:float|None=None, verbose:bool=True) -> None:
+    """
+    Play audio data directly using system audio player.
+    """
     try:
-        if sys.platform == "darwin" or sys.platform.startswith("linux"):  # Mac/Linux
+        if playspeed:
+            # TODO: If playspeed>2, chain it (eg, `ffplay -af atempo=2 -af atempo=2 audio.mp3`)
+            print_and_run([
+                "ffplay", str(audio_path),
+                "-af", f"atempo={playspeed}",  # playspeed
+                "-vn", "-nodisp",  # no GUI
+                "-hide_banner", "-loglevel", "error",  # less terminal output
+                "-autoexit",  # exit when done (kinda nuts that this isn't the default)
+            ], check=True)
+        elif sys.platform == "darwin" or sys.platform.startswith("linux"):  # Mac/Linux
             # Try common Mac/Linux audio players
             players = ["afplay", "mpg123", "mpv", "vlc", "mplayer", "xdg-open"]
             for player in players:
                 try:
-                    subp.run([player, temp_path], check=True, stdout=subp.DEVNULL, stderr=subp.DEVNULL)
+                    subp.run([player, str(audio_path)], check=True, stdout=subp.DEVNULL, stderr=subp.DEVNULL)
                     break
                 except (subp.CalledProcessError, FileNotFoundError):
                     pass
@@ -475,7 +497,7 @@ def play_audio(audio_data: bytes, verbose:bool=True) -> None:
             raise Exception(f"Unsupported platform: {sys.platform}")
 
     except Exception as e:
-        raise Exception(f"Error playing {temp_path}: {e}")
+        raise Exception(f"Error playing {audio_path}: {e}")
 
 
 def get_datetimestr() -> str: return datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
