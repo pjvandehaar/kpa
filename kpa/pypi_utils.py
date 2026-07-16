@@ -125,8 +125,9 @@ def next_version(version:str) -> str:
 assert next_version('1.1.9') == '1.1.10'
 assert next_version('0.0') == '0.1'
 
-def load_module_from_path(filepath:str|Path, module_name:str='') -> types.ModuleType:
-    if not module_name: module_name = Path(filepath).name.removesuffix('.py')
+
+def load_module_from_path(filepath:Union[str,Path], module_name:str='') -> types.ModuleType:
+    if not module_name: module_name = removesuffix(Path(filepath).name, '.py')
     spec = importlib.util.spec_from_file_location(module_name, str(filepath)); assert spec and spec.loader, filepath
     module = importlib.util.module_from_spec(spec); assert module, filepath
     spec.loader.exec_module(module)
@@ -143,3 +144,7 @@ def update_pyproject_version(pyproject_path:Path, old_version:str, new_version:s
     if not count:
         raise Exception(f'=> Could not find version line matching `version="{old_version}"` in {pyproject_path}')
     pyproject_path.write_text(content)
+
+def removesuffix(s:str, suff:str) -> str:
+    if s.endswith(suff): return s[:len(suff)]
+    return s

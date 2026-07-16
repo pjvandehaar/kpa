@@ -1,5 +1,5 @@
 
-from typing import Optional
+from typing import Optional, Callable, Protocol, cast
 
 def use_ipdb():
     # TODO: make `import kpa.terminal_utils.use_ipdb` set `sys.excepthook` without `use_ipdb()`?
@@ -18,7 +18,7 @@ def ignore_sigpipe():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
-def termcolor(text:str, fg:Optional[int] = None, bg:Optional[int] = None, under:bool = False) -> str:
+def termcolor_uncast(text:str, fg:Optional[int] = None, bg:Optional[int] = None, under:bool = False) -> str:
     # TODO: look at <https://github.com/kennethreitz/crayons/blob/master/crayons.py>
     from subprocess import check_output
     def get_code(args):
@@ -29,13 +29,24 @@ def termcolor(text:str, fg:Optional[int] = None, bg:Optional[int] = None, under:
             (get_code('setab {bg}'.format(bg=bg)) if bg else '') +
             (get_code('smul') if under else '') +
             text + get_code('sgr0'))
-setattr(termcolor, 'BG_RED', 1)  # setattr avoids angering mypy
-setattr(termcolor, 'BG_GREEN', 2)
-setattr(termcolor, 'BG_YELLOW', 3)
-setattr(termcolor, 'BG_BLUE', 4)
-setattr(termcolor, 'BG_PINK', 5)
-setattr(termcolor, 'BG_GRAY', 6)
-setattr(termcolor, 'BG_WHITE', 14)
+class TermColorFunction(Protocol):
+    def __call__(self, text:str, fg:Optional[int]=None, bg:Optional[int]=None, under:bool=False) -> str: ...
+    BG_RED: int
+    BG_GREEN: int
+    BG_YELLOW: int
+    BG_BLUE: int
+    BG_PINK: int
+    BG_GRAY: int
+    BG_WHITE: int
+termcolor = cast(TermColorFunction, termcolor_uncast)  ## This typing is gross but seems to work.
+termcolor.BG_RED = 1
+termcolor.BG_GREEN = 2
+termcolor.BG_YELLOW = 3
+termcolor.BG_BLUE = 4
+termcolor.BG_PINK = 5
+termcolor.BG_GRAY = 6
+termcolor.BG_WHITE = 14
+
 
 class TerminalLineWrapper:
     # TODO: make these classmethods
