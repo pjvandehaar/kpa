@@ -69,6 +69,10 @@ def main() -> None:
         from .pypi_utils import upload_package
         upload_package(package_name=sys.argv[2] if sys.argv[2:] else None)
 
+    elif command == 'gits':
+        from .git_utils import run as git_run
+        git_run(sys.argv[2:])
+
     elif command == 'skel':
         from .skel import run as skel_run
         skel_run(sys.argv[2:])
