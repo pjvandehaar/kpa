@@ -33,7 +33,10 @@ def get(url:str, user_agent:str|None=None, raise_for_status:bool=True, validate_
                     assert isinstance(cached_http_response['status_code'], int)
                     assert isinstance(cached_http_response['headers'], dict)
                     assert isinstance(cached_http_response['text'], str)
-                    return cached_http_response
+                    return HTTP_Response(
+                        status_code=cached_http_response['status_code'],
+                        headers=cached_http_response['headers'],
+                        text=cached_http_response['text'])
     if log:
         log_filepath.parent.mkdir(exist_ok=True, parents=True)
         log_data = {

@@ -37,10 +37,10 @@ Examples:
         warnings.simplefilter("ignore")
         pipeline = KPipeline(lang_code='en-us', repo_id='hexgrad/Kokoro-82M')
     print("=> Using KPipeline on text...")
-    generator = pipeline(text, voice='af_heart')
+    generator = pipeline(text, voice='af_bella')
 
     # Queue for audio files to be played
-    audio_queue = queue.Queue()
+    audio_queue: queue.Queue[str|None] = queue.Queue()
 
     def playback_worker():
         while True:

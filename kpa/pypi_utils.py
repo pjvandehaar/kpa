@@ -1,10 +1,11 @@
 from pathlib import Path
 import subprocess, sys, shutil, re, urllib.request, json, importlib.util, types, configparser
+from typing import Union
 try:
-    import tomllib  # py3.11+
+    import tomllib  # py3.11+ builtin
 except ImportError:
     try:
-        import tomli as tomllib  # backport of tomllib on PyPI
+        import tomli as tomllib  # type: ignore[no-redef]
     except ImportError:
         raise Exception('=> Please run `pip install tomli` and then try again.')
 

@@ -9,25 +9,35 @@ help_template = '''\
 kpa version {version}
 
 available commands:
-  kpa lint
-  kpa lint-watch
-  kpa watch
+  kpa watch-lint-run (wlr)
+  kpa lint (l)
+  kpa lint-watch (lw)
+  kpa watch (w)
+
   kpa skel
   kpa pip-find-updates
   kpa pip-publish
+  kpa gits
+
   kpa termcolor
+
   kpa serve-status-code (status-code-server)
   kpa redirect-server
+
   kpa llm
   kpa speak
+  kpa speak-local
+  kpa play
 '''
 
 def main() -> None:
     command = sys.argv[1] if sys.argv[1:] else ''
 
-    ## TODO: Add lwr which watches, lints, and runs.
+    if command in ['watch-lint-run', 'wlr']:
+        from .dev_utils import watch_lint_run
+        watch_lint_run(sys.argv[2:])
 
-    if command in ['lint', 'l']:
+    elif command in ['lint', 'l']:
         from .dev_utils import lint_cli
         exit(lint_cli(sys.argv[2:]))
 

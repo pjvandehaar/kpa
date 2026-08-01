@@ -117,6 +117,33 @@ def get_all_py_files(directory_:Optional[str] = None) -> Iterator[str]:
         yield str(filepath)
 
 
+def watch_lint_run(args:list[str]) -> None:
+    if not args:
+        print('Usage:')
+        print('  kpa watch-lint-run ./compress.py --level=9  # Re-runs when compress.py changes')
+        print('  kpa watch-lint-run *.py -- ./compress.py --level=9  # Re-runs when any *.py changes')
+        sys.exit(1)
+    elif '--' in args:
+        dashdash_index = args.index('--')
+        filepaths = args[:dashdash_index]
+        cmd = args[dashdash_index+1:]
+    else:
+        filepaths = [args[0]]
+        cmd = args
+        if os.path.exists(filepaths[0]) and not filepaths[0].startswith(('/', './')):
+            cmd[0] = f'./{cmd[0]}'
+
+    print(f'Watching {repr(filepaths)} and running `kpa lint` + {cmd}\n')
+    from .watcher import yield_when_files_update
+    for changeset in yield_when_files_update(filepaths, and_also_immediately=True):
+        if changeset is not None: print()
+        print('======> linting...')
+        lint_cli(filepaths)
+        print('======>', cmd)
+        subp.run(cmd)
+        print('.')
+
+
 def get_size(obj, seen:Optional[set] = None) -> int:
     """Recursively calculates bytes of RAM taken by object"""
     # From https://code.activestate.com/recipes/577504/ and https://github.com/bosswissam/pysize/blob/master/pysize.py
